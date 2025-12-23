@@ -6,28 +6,29 @@
 -- | NOTE: Mozilla Persona will be shut down by the end of 2016, therefore this
 -- module is no longer recommended for use.
 module Yesod.Auth.BrowserId
-    {-# DEPRECATED "Mozilla Persona will be shut down by the end of 2016" #-}
-    ( authBrowserId
-    , createOnClick, createOnClickOverride
-    , def
-    , BrowserIdSettings
-    , bisAudience
-    , bisLazyLoad
-    , forwardUrl
-    ) where
+  {-# DEPRECATED "Mozilla Persona will be shut down by the end of 2016" #-}
+  ( authBrowserId
+  , createOnClick
+  , createOnClickOverride
+  , def
+  , BrowserIdSettings
+  , bisAudience
+  , bisLazyLoad
+  , forwardUrl
+  ) where
 
-import Yesod.Auth
-import Web.Authenticate.BrowserId
-import Data.Text (Text)
-import Yesod.Core
-import qualified Data.Text as T
-import Data.Maybe (fromMaybe)
-import Control.Monad (when, unless)
-import Text.Julius (rawJS)
-import Network.URI (uriPath, parseURI)
-import Data.FileEmbed (embedFile)
+import Control.Monad (unless, when)
 import Data.ByteString (ByteString)
 import Data.Default
+import Data.FileEmbed (embedFile)
+import Data.Maybe (fromMaybe)
+import Data.Text (Text)
+import qualified Data.Text as T
+import Network.URI (parseURI, uriPath)
+import Text.Julius (rawJS)
+import Web.Authenticate.BrowserId
+import Yesod.Auth
+import Yesod.Core
 
 pid :: Text
 pid = "browserid"
@@ -44,88 +45,97 @@ complete = forwardUrl
 --
 -- Since 1.2.0
 data BrowserIdSettings = BrowserIdSettings
-    { bisAudience :: Maybe Text
-    -- ^ BrowserID audience value. If @Nothing@, will be extracted based on the
-    -- approot.
-    --
-    -- Default: @Nothing@
-    --
-    -- Since 1.2.0
-    , bisLazyLoad :: Bool
-    -- ^ Use asynchronous Javascript loading for the BrowserID JS file.
-    --
-    -- Default: @True@.
-    --
-    -- Since 1.2.0
-    }
+  { bisAudience :: Maybe Text
+  -- ^ BrowserID audience value. If @Nothing@, will be extracted based on the
+  -- approot.
+  --
+  -- Default: @Nothing@
+  --
+  -- Since 1.2.0
+  , bisLazyLoad :: Bool
+  -- ^ Use asynchronous Javascript loading for the BrowserID JS file.
+  --
+  -- Default: @True@.
+  --
+  -- Since 1.2.0
+  }
 
 instance Default BrowserIdSettings where
-    def = BrowserIdSettings
-        { bisAudience = Nothing
-        , bisLazyLoad = True
-        }
+  def =
+    BrowserIdSettings
+      { bisAudience = Nothing
+      , bisLazyLoad = True
+      }
 
-authBrowserId :: YesodAuth m => BrowserIdSettings -> AuthPlugin m
-authBrowserId bis@BrowserIdSettings {..} = AuthPlugin
+authBrowserId :: (YesodAuth m) => BrowserIdSettings -> AuthPlugin m
+authBrowserId bis@BrowserIdSettings{..} =
+  AuthPlugin
     { apName = pid
     , apDispatch = \m ps ->
         case (m, ps) of
-            ("GET", [assertion]) -> do
-                audience <-
-                    case bisAudience of
-                        Just a -> return a
-                        Nothing -> do
-                            r <- getUrlRender
-                            tm <- getRouteToParent
-                            return $ T.takeWhile (/= '/') $ stripScheme $ r $ tm LoginR
-                manager <- authHttpManager
-                memail <- checkAssertion audience assertion manager
-                case memail of
-                    Nothing -> do
-                      $logErrorS "yesod-auth" "BrowserID assertion failure"
-                      tm <- getRouteToParent
-                      loginErrorMessage (tm LoginR) "BrowserID login error."
-                    Just email -> setCredsRedirect Creds
-                        { credsPlugin = pid
-                        , credsIdent = email
-                        , credsExtra = []
-                        }
-            ("GET", ["static", "sign-in.png"]) -> sendResponse
-                ( "image/png" :: ByteString
-                , toContent $(embedFile "persona_sign_in_blue.png")
-                )
-            (_, []) -> badMethod
-            _ -> notFound
+          ("GET", [assertion]) -> do
+            audience <-
+              case bisAudience of
+                Just a -> return a
+                Nothing -> do
+                  r <- getUrlRender
+                  tm <- getRouteToParent
+                  return $ T.takeWhile (/= '/') $ stripScheme $ r $ tm LoginR
+            manager <- authHttpManager
+            memail <- checkAssertion audience assertion manager
+            case memail of
+              Nothing -> do
+                $logErrorS "yesod-auth" "BrowserID assertion failure"
+                tm <- getRouteToParent
+                loginErrorMessage (tm LoginR) "BrowserID login error."
+              Just email ->
+                setCredsRedirect
+                  Creds
+                    { credsPlugin = pid
+                    , credsIdent = email
+                    , credsExtra = []
+                    }
+          ("GET", ["static", "sign-in.png"]) ->
+            sendResponse
+              ( "image/png" :: ByteString
+              , toContent
+                  $(embedFile "/home/mpb/Haskell/yesod/yesod-auth/persona_sign_in_blue.png")
+              )
+          (_, []) -> badMethod
+          _ -> notFound
     , apLogin = \toMaster -> do
         onclick <- createOnClick bis toMaster
 
-        autologin <- fmap (== Just "true") $ lookupGetParam "autologin"
+        autologin <- (== Just "true") <$> lookupGetParam "autologin"
         when autologin $ toWidget [julius|#{rawJS onclick}();|]
 
-        toWidget [hamlet|
+        toWidget
+          [hamlet|
 $newline never
 <p>
     <a href="javascript:#{onclick}()">
         <img src=@{toMaster loginIcon}>
 |]
     }
-  where
-    loginIcon = PluginR pid ["static", "sign-in.png"]
-    stripScheme t = fromMaybe t $ T.stripPrefix "//" $ snd $ T.breakOn "//" t
+ where
+  loginIcon = PluginR pid ["static", "sign-in.png"]
+  stripScheme t = fromMaybe t $ T.stripPrefix "//" $ snd $ T.breakOn "//" t
 
 -- | Generates a function to handle on-click events, and returns that function
 -- name.
-createOnClickOverride :: BrowserIdSettings
-              -> (Route Auth -> Route master)
-              -> Maybe (Route master)
-              -> WidgetFor master Text
-createOnClickOverride BrowserIdSettings {..} toMaster mOnRegistration = do
-    unless bisLazyLoad $ addScriptRemote browserIdJs
-    onclick <- newIdent
-    render <- getUrlRender
-    let login = toJSON $ getPath $ render loginRoute -- (toMaster LoginR)
-        loginRoute = maybe (toMaster LoginR) id mOnRegistration
-    toWidget [julius|
+createOnClickOverride ::
+  BrowserIdSettings ->
+  (Route Auth -> Route master) ->
+  Maybe (Route master) ->
+  WidgetFor master Text
+createOnClickOverride BrowserIdSettings{..} toMaster mOnRegistration = do
+  unless bisLazyLoad $ addScriptRemote browserIdJs
+  onclick <- newIdent
+  render <- getUrlRender
+  let login = toJSON $ getPath $ render loginRoute -- (toMaster LoginR)
+      loginRoute = fromMaybe (toMaster LoginR) mOnRegistration
+  toWidget
+    [julius|
         function #{rawJS onclick}() {
             if (navigator.id) {
                 navigator.id.watch({
@@ -145,7 +155,9 @@ createOnClickOverride BrowserIdSettings {..} toMaster mOnRegistration = do
             }
         }
     |]
-    when bisLazyLoad $ toWidget [julius|
+  when bisLazyLoad $
+    toWidget
+      [julius|
         (function(){
             var bid = document.createElement("script");
             bid.async = true;
@@ -155,17 +167,18 @@ createOnClickOverride BrowserIdSettings {..} toMaster mOnRegistration = do
         })();
     |]
 
-    autologin <- fmap (== Just "true") $ lookupGetParam "autologin"
-    when autologin $ toWidget [julius|#{rawJS onclick}();|]
-    return onclick
-  where
-    getPath t = fromMaybe t $ do
-        uri <- parseURI $ T.unpack t
-        return $ T.pack $ uriPath uri
+  autologin <- (== Just "true") <$> lookupGetParam "autologin"
+  when autologin $ toWidget [julius|#{rawJS onclick}();|]
+  return onclick
+ where
+  getPath t = fromMaybe t $ do
+    uri <- parseURI $ T.unpack t
+    return $ T.pack $ uriPath uri
 
 -- | Generates a function to handle on-click events, and returns that function
 -- name.
-createOnClick :: BrowserIdSettings
-              -> (Route Auth -> Route master)
-              -> WidgetFor master Text
+createOnClick ::
+  BrowserIdSettings ->
+  (Route Auth -> Route master) ->
+  WidgetFor master Text
 createOnClick bidSettings toMaster = createOnClickOverride bidSettings toMaster Nothing

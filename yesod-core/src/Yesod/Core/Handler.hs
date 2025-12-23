@@ -1,5 +1,4 @@
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
@@ -27,333 +26,391 @@
 --
 ---------------------------------------------------------
 module Yesod.Core.Handler
-    ( -- * Handler monad
-      HandlerT
-    , HandlerFor
-      -- ** Read information from handler
-    , getYesod
-    , getsYesod
-    , getUrlRender
-    , getUrlRenderParams
-    , getPostParams
-    , getCurrentRoute
-    , getRequest
-    , waiRequest
-    , runRequestBody
-    , rawRequestBody
-      -- ** Request information
-      -- *** Request datatype
-    , RequestBodyContents
-    , YesodRequest (..)
-    , FileInfo
-    , fileName
-    , fileContentType
-    , fileSource
-    , fileSourceByteString
-    , fileMove
-      -- *** Convenience functions
-    , languages
-      -- *** Lookup parameters
-    , lookupGetParam
-    , lookupPostParam
-    , lookupCookie
-    , lookupFile
-    , lookupHeader
-      -- **** Lookup authentication data
-    , lookupBasicAuth
-    , lookupBearerAuth
-      -- **** Multi-lookup
-    , lookupGetParams
-    , lookupPostParams
-    , lookupCookies
-    , lookupFiles
-    , lookupHeaders
-      -- * Responses
-      -- ** Pure
-    , respond
-      -- ** Streaming
-    , respondSource
-    , sendChunk
-    , sendFlush
-    , sendChunkBS
-    , sendChunkLBS
-    , sendChunkText
-    , sendChunkLazyText
-    , sendChunkHtml
-      -- ** Redirecting
-    , RedirectUrl (..)
-    , redirect
-    , redirectWith
-    , redirectToPost
-    , Fragment(..)
-      -- ** Errors
-    , notFound
-    , badMethod
-    , notAuthenticated
-    , permissionDenied
-    , permissionDeniedI
-    , invalidArgs
-    , invalidArgsI
-      -- ** Short-circuit responses
-      -- $rollbackWarning
-    , sendFile
-    , sendFilePart
-    , sendResponse
-    , sendResponseStatus
-      -- ** Type specific response with custom status
-    , sendStatusJSON
-    , sendResponseCreated
-    , sendResponseNoContent
-    , sendWaiResponse
-    , sendWaiApplication
-    , sendRawResponse
-    , sendRawResponseNoConduit
-    , notModified
-      -- * Different representations
-      -- $representations
-    , selectRep
-    , provideRep
-    , provideRepType
-    , ProvidedRep
-      -- * Setting headers
-    , setCookie
-    , getExpires
-    , deleteCookie
-    , addHeader
-    , setHeader
-    , replaceOrAddHeader
-    , setLanguage
-    , addContentDispositionFileName
-      -- ** Content caching and expiration
-    , cacheSeconds
-    , neverExpires
-    , alreadyExpired
-    , expiresAt
-    , setEtag
-    , setWeakEtag
-      -- * Session
-    , SessionMap
-    , lookupSession
-    , lookupSessionBS
-    , getSession
-    , setSession
-    , setSessionBS
-    , deleteSession
-    , clearSession
-      -- ** Ultimate destination
-    , setUltDest
-    , setUltDestCurrent
-    , setUltDestReferer
-    , redirectUltDest
-    , clearUltDest
-      -- ** Messages
-    , addMessage
-    , addMessageI
-    , getMessages
-    , setMessage
-    , setMessageI
-    , getMessage
-      -- * Subsites
-    , SubHandlerFor
-    , getSubYesod
-    , getRouteToParent
-    , getSubCurrentRoute
-      -- * Helpers for specific content
-      -- ** Hamlet
-    , hamletToRepHtml
-    , giveUrlRenderer
-    , withUrlRenderer
-      -- ** Misc
-    , newIdent
-      -- * Lifting
-    , handlerToIO
-    , forkHandler
-      -- * i18n
-    , getMessageRender
-      -- * Per-request caching
-    , cached
-    , cacheGet
-    , cacheSet
-    , cachedBy
-    , cacheByGet
-    , cacheBySet
-      -- * AJAX CSRF protection
+  ( -- * Handler monad
+    HandlerT
+  , HandlerFor
 
-      -- $ajaxCSRFOverview
+    -- ** Read information from handler
+  , getYesod
+  , getsYesod
+  , getUrlRender
+  , getUrlRenderParams
+  , getPostParams
+  , getCurrentRoute
+  , getRequest
+  , waiRequest
+  , runRequestBody
+  , rawRequestBody
 
-      -- ** Setting CSRF Cookies
-    , setCsrfCookie
-    , setCsrfCookieWithCookie
-    , defaultCsrfCookieName
-      -- ** Looking up CSRF Headers
-    , checkCsrfHeaderNamed
-    , hasValidCsrfHeaderNamed
-    , defaultCsrfHeaderName
-      -- ** Looking up CSRF POST Parameters
-    , hasValidCsrfParamNamed
-    , checkCsrfParamNamed
-    , defaultCsrfParamName
-      -- ** Checking CSRF Headers or POST Parameters
-    , checkCsrfHeaderOrParam
-    ) where
+    -- ** Request information
 
-import           Data.Time                     (UTCTime, addUTCTime,
-                                                getCurrentTime)
-import           Yesod.Core.Internal.Request   (langKey, mkFileInfoFile,
-                                                mkFileInfoLBS, mkFileInfoSource)
+    -- *** Request datatype
+  , RequestBodyContents
+  , YesodRequest (..)
+  , FileInfo
+  , fileName
+  , fileContentType
+  , fileSource
+  , fileSourceByteString
+  , fileMove
 
+    -- *** Convenience functions
+  , languages
 
-import           Control.Applicative           ((<|>))
-import qualified Data.CaseInsensitive          as CI
-import           Control.Exception             (evaluate, SomeException, throwIO)
-import           Control.Exception             (handle)
+    -- *** Lookup parameters
+  , lookupGetParam
+  , lookupPostParam
+  , lookupCookie
+  , lookupFile
+  , lookupHeader
 
-import           Control.Monad                 (void, liftM, unless)
-import qualified Control.Monad.Trans.Writer    as Writer
+    -- **** Lookup authentication data
+  , lookupBasicAuth
+  , lookupBearerAuth
 
-import           UnliftIO                      (MonadIO, liftIO, MonadUnliftIO, withRunInIO)
+    -- **** Multi-lookup
+  , lookupGetParams
+  , lookupPostParams
+  , lookupCookies
+  , lookupFiles
+  , lookupHeaders
 
-import qualified Network.HTTP.Types            as H
-import qualified Network.Wai                   as W
-import           Network.Wai.Middleware.HttpAuth
-    ( extractBasicAuth, extractBearerAuth )
+    -- * Responses
+
+    -- ** Pure
+  , respond
+
+    -- ** Streaming
+  , respondSource
+  , sendChunk
+  , sendFlush
+  , sendChunkBS
+  , sendChunkLBS
+  , sendChunkText
+  , sendChunkLazyText
+  , sendChunkHtml
+
+    -- ** Redirecting
+  , RedirectUrl (..)
+  , redirect
+  , redirectWith
+  , redirectToPost
+  , Fragment (..)
+
+    -- ** Errors
+  , notFound
+  , badMethod
+  , notAuthenticated
+  , permissionDenied
+  , permissionDeniedI
+  , invalidArgs
+  , invalidArgsI
+
+    -- ** Short-circuit responses
+    -- $rollbackWarning
+  , sendFile
+  , sendFilePart
+  , sendResponse
+  , sendResponseStatus
+
+    -- ** Type specific response with custom status
+  , sendStatusJSON
+  , sendResponseCreated
+  , sendResponseNoContent
+  , sendWaiResponse
+  , sendWaiApplication
+  , sendRawResponse
+  , sendRawResponseNoConduit
+  , notModified
+
+    -- * Different representations
+    -- $representations
+  , selectRep
+  , provideRep
+  , provideRepType
+  , ProvidedRep
+
+    -- * Setting headers
+  , setCookie
+  , getExpires
+  , deleteCookie
+  , addHeader
+  , setHeader
+  , replaceOrAddHeader
+  , setLanguage
+  , addContentDispositionFileName
+
+    -- ** Content caching and expiration
+  , cacheSeconds
+  , neverExpires
+  , alreadyExpired
+  , expiresAt
+  , setEtag
+  , setWeakEtag
+
+    -- * Session
+  , SessionMap
+  , lookupSession
+  , lookupSessionBS
+  , getSession
+  , setSession
+  , setSessionBS
+  , deleteSession
+  , clearSession
+
+    -- ** Ultimate destination
+  , setUltDest
+  , setUltDestCurrent
+  , setUltDestReferer
+  , redirectUltDest
+  , clearUltDest
+
+    -- ** Messages
+  , addMessage
+  , addMessageI
+  , getMessages
+  , setMessage
+  , setMessageI
+  , getMessage
+
+    -- * Subsites
+  , SubHandlerFor
+  , getSubYesod
+  , getRouteToParent
+  , getSubCurrentRoute
+
+    -- * Helpers for specific content
+
+    -- ** Hamlet
+  , hamletToRepHtml
+  , giveUrlRenderer
+  , withUrlRenderer
+
+    -- ** Misc
+  , newIdent
+
+    -- * Lifting
+  , handlerToIO
+  , forkHandler
+
+    -- * i18n
+  , getMessageRender
+
+    -- * Per-request caching
+  , cached
+  , cacheGet
+  , cacheSet
+  , cachedBy
+  , cacheByGet
+  , cacheBySet
+
+    -- * AJAX CSRF protection
+    -- $ajaxCSRFOverview
+
+    -- ** Setting CSRF Cookies
+  , setCsrfCookie
+  , setCsrfCookieWithCookie
+  , defaultCsrfCookieName
+
+    -- ** Looking up CSRF Headers
+  , checkCsrfHeaderNamed
+  , hasValidCsrfHeaderNamed
+  , defaultCsrfHeaderName
+
+    -- ** Looking up CSRF POST Parameters
+  , hasValidCsrfParamNamed
+  , checkCsrfParamNamed
+  , defaultCsrfParamName
+
+    -- ** Checking CSRF Headers or POST Parameters
+  , checkCsrfHeaderOrParam
+  ) where
+
+import Conduit (runConduit, sinkLazy, (.|))
+import Control.Applicative ((<|>))
+import Control.Arrow ((***))
+import Control.Exception (SomeException, evaluate, handle, throwIO)
+import Control.Monad (unless, void)
+import Control.Monad.Logger (MonadLogger, logWarnS)
 import Control.Monad.Trans.Class (lift)
-
-import           Data.Aeson                    (ToJSON(..))
-import qualified Data.Text                     as T
-import           Data.Text.Encoding            (decodeUtf8With, encodeUtf8, decodeUtf8)
-import           Data.Text.Encoding.Error      (lenientDecode)
-import qualified Data.Text.Lazy                as TL
-import           Text.Blaze.Html.Renderer.Utf8 (renderHtml)
-import           Text.Hamlet                   (Html, HtmlUrl, hamlet)
-
-import qualified Data.ByteString               as S
-import qualified Data.ByteString.Lazy          as L
-import qualified Data.Map                      as Map
-import qualified Data.HashMap.Strict           as HM
-
-import           Data.ByteArray                (constEq)
-
-import           Control.Arrow                 ((***))
-import qualified Data.ByteString.Char8         as S8
-import           Data.Monoid                   (Endo (..))
-import           Data.Text                     (Text)
-import qualified Network.Wai.Parse             as NWP
-import           Text.Shakespeare.I18N         (RenderMessage (..))
-import           Web.Cookie                    (SetCookie (..), defaultSetCookie)
-import           Yesod.Core.Content            (ToTypedContent (..), simpleContentType, contentTypeTypes, HasContentType (..), ToContent (..), ToFlushBuilder (..))
-import           Yesod.Core.Internal.Util      (formatRFC1123)
-import           Text.Blaze.Html               (preEscapedToHtml, toHtml)
-
-import qualified Data.IORef                    as I
-import           Data.Maybe                    (listToMaybe, mapMaybe)
-import           Data.Typeable                 (Typeable)
-import           Data.Kind                     (Type)
-import           Web.PathPieces                (PathPiece(..))
-import           Yesod.Core.Class.Handler
-import           Yesod.Core.Types
-import           Data.ByteString.Builder (Builder)
-import           Data.CaseInsensitive (CI, original)
+import Control.Monad.Trans.Resource
+  ( InternalState
+  , MonadResource
+  , getInternalState
+  , liftResourceT
+  , resourceForkIO
+  , runResourceT
+  , withInternalState
+  )
+import qualified Control.Monad.Trans.Writer as Writer
+import Data.Aeson (ToJSON (..))
+import Data.ByteArray (constEq)
+import qualified Data.ByteString as S
+import Data.ByteString.Builder (Builder)
+import qualified Data.ByteString.Char8 as S8
+import qualified Data.ByteString.Lazy as L
+import Data.CaseInsensitive (CI, original)
+import qualified Data.CaseInsensitive as CI
+import Data.Conduit (ConduitT, Flush (Flush), Void, transPipe, yield)
 import qualified Data.Conduit.List as CL
-import           Control.Monad.Trans.Resource  (MonadResource, InternalState, runResourceT, withInternalState, getInternalState, liftResourceT, resourceForkIO)
-import qualified System.PosixCompat.Files as PC
-import           Conduit ((.|), runConduit, sinkLazy)
-import           Data.Conduit (ConduitT, transPipe, Flush (Flush), yield, Void)
-import qualified Yesod.Core.TypeCache as Cache
-import qualified Data.Word8 as W8
 import qualified Data.Foldable as Fold
-import           Control.Monad.Logger (MonadLogger, logWarnS)
+import qualified Data.HashMap.Strict as HM
+import qualified Data.IORef as I
+import Data.Kind (Type)
+import qualified Data.Map as Map
+import Data.Maybe (fromMaybe, listToMaybe, mapMaybe)
+import Data.Monoid (Endo (..))
+import Data.Text (Text)
+import qualified Data.Text as T
+import Data.Text.Encoding
+  ( decodeUtf8
+  , decodeUtf8With
+  , encodeUtf8
+  )
+import Data.Text.Encoding.Error (lenientDecode)
+import qualified Data.Text.Lazy as TL
+import Data.Time
+  ( UTCTime
+  , addUTCTime
+  , getCurrentTime
+  )
+import Data.Typeable (Typeable)
+import qualified Data.Word8 as W8
+import qualified Network.HTTP.Types as H
+import qualified Network.Wai as W
+import Network.Wai.Middleware.HttpAuth
+  ( extractBasicAuth
+  , extractBearerAuth
+  )
+import qualified Network.Wai.Parse as NWP
+import qualified System.PosixCompat.Files as PC
+import Text.Blaze.Html (preEscapedToHtml, toHtml)
+import Text.Blaze.Html.Renderer.Utf8 (renderHtml)
+import Text.Hamlet (Html, HtmlUrl, hamlet)
+import Text.Shakespeare.I18N (RenderMessage (..))
+import UnliftIO
+  ( MonadIO
+  , MonadUnliftIO
+  , liftIO
+  , withRunInIO
+  )
+import Web.Cookie
+  ( SetCookie (..)
+  , defaultSetCookie
+  )
+import Web.PathPieces (PathPiece (..))
+import Yesod.Core.Class.Handler
+import Yesod.Core.Content
+  ( HasContentType (..)
+  , ToContent (..)
+  , ToFlushBuilder (..)
+  , ToTypedContent (..)
+  , contentTypeTypes
+  , simpleContentType
+  )
+import Yesod.Core.Internal.Request
+  ( langKey
+  , mkFileInfoFile
+  , mkFileInfoLBS
+  , mkFileInfoSource
+  )
+import Yesod.Core.Internal.Util (formatRFC1123)
+import qualified Yesod.Core.TypeCache as Cache
+import Yesod.Core.Types
 
 type HandlerT site (m :: Type -> Type) = HandlerFor site
 {-# DEPRECATED HandlerT "Use HandlerFor directly" #-}
 
-get :: MonadHandler m => m GHState
+get :: (MonadHandler m) => m GHState
 get = liftHandler $ HandlerFor $ I.readIORef . handlerState
 
-put :: MonadHandler m => GHState -> m ()
+put :: (MonadHandler m) => GHState -> m ()
 put x = liftHandler $ HandlerFor $ flip I.writeIORef x . handlerState
 
-modify :: MonadHandler m => (GHState -> GHState) -> m ()
+modify :: (MonadHandler m) => (GHState -> GHState) -> m ()
 modify f = liftHandler $ HandlerFor $ flip I.modifyIORef f . handlerState
 
-tell :: MonadHandler m => Endo [Header] -> m ()
-tell hs = modify $ \g -> g { ghsHeaders = ghsHeaders g `mappend` hs }
+tell :: (MonadHandler m) => Endo [Header] -> m ()
+tell hs = modify $ \g -> g{ghsHeaders = ghsHeaders g <> hs}
 
-handlerError :: MonadHandler m => HandlerContents -> m a
+handlerError :: (MonadHandler m) => HandlerContents -> m a
 handlerError = liftIO . throwIO
 
-hcError :: MonadHandler m => ErrorResponse -> m a
+hcError :: (MonadHandler m) => ErrorResponse -> m a
 hcError = handlerError . HCError
 
-getRequest :: MonadHandler m => m YesodRequest
-getRequest = liftHandler $ HandlerFor $ return . handlerRequest
+getRequest :: (MonadHandler m) => m YesodRequest
+getRequest = liftHandler $ HandlerFor $ pure . handlerRequest
 
-runRequestBody :: MonadHandler m => m RequestBodyContents
+runRequestBody :: (MonadHandler m) => m RequestBodyContents
 runRequestBody = do
-    HandlerData
-        { handlerEnv = RunHandlerEnv {..}
-        , handlerRequest = req
-        } <- liftHandler $ HandlerFor return
-    let len = W.requestBodyLength $ reqWaiRequest req
-        upload = rheUpload len
-    x <- get
-    case ghsRBC x of
-        Just rbc -> return rbc
-        Nothing -> do
-            rr <- waiRequest
-            internalState <- liftResourceT getInternalState
-            rbc <- liftIO $ rbHelper upload rr internalState
-            put x { ghsRBC = Just rbc }
-            return rbc
+  HandlerData
+    { handlerEnv = RunHandlerEnv{..}
+    , handlerRequest = req
+    } <-
+    liftHandler $ HandlerFor pure
+  let len = W.requestBodyLength $ reqWaiRequest req
+      upload = rheUpload len
+  x <- get
+  case ghsRBC x of
+    Just rbc -> pure rbc
+    Nothing -> do
+      rr <- waiRequest
+      internalState <- liftResourceT getInternalState
+      rbc <- liftIO $ rbHelper upload rr internalState
+      put x{ghsRBC = Just rbc}
+      pure rbc
 
 rbHelper :: FileUpload -> W.Request -> InternalState -> IO RequestBodyContents
 rbHelper upload req internalState =
-    case upload of
-        FileUploadMemory s -> rbHelper' s mkFileInfoLBS req
-        FileUploadDisk s -> rbHelper' (s internalState) mkFileInfoFile req
-        FileUploadSource s -> rbHelper' s mkFileInfoSource req
+  case upload of
+    FileUploadMemory s -> rbHelper' s mkFileInfoLBS req
+    FileUploadDisk s -> rbHelper' (s internalState) mkFileInfoFile req
+    FileUploadSource s -> rbHelper' s mkFileInfoSource req
 
-rbHelper' :: NWP.BackEnd x
-          -> (Text -> Text -> x -> FileInfo)
-          -> W.Request
-          -> IO ([(Text, Text)], [(Text, FileInfo)])
+rbHelper' ::
+  NWP.BackEnd x ->
+  (Text -> Text -> x -> FileInfo) ->
+  W.Request ->
+  IO ([(Text, Text)], [(Text, FileInfo)])
 rbHelper' backend mkFI req =
-    (map fix1 *** mapMaybe fix2) <$> NWP.parseRequestBody backend req
-  where
-    fix1 = go *** go
-    fix2 (x, NWP.FileInfo a' b c)
-        | S.null a = Nothing
-        | otherwise = Just (go x, mkFI (go a) (go b) c)
-      where
-        a
-            | S.length a' < 2 = a'
-            | S8.head a' == '"' && S8.last a' == '"' = S.tail $ S.init a'
-            | S8.head a' == '\'' && S8.last a' == '\'' = S.tail $ S.init a'
-            | otherwise = a'
-    go = decodeUtf8With lenientDecode
+  (map fix1 *** mapMaybe fix2) <$> NWP.parseRequestBody backend req
+ where
+  fix1 = go *** go
+  fix2 (x, NWP.FileInfo a' b c)
+    | S.null a = Nothing
+    | otherwise = Just (go x, mkFI (go a) (go b) c)
+   where
+    a
+      | S.length a' < 2 = a'
+      | S8.head a' == '"' && S8.last a' == '"' = S.tail $ S.init a'
+      | S8.head a' == '\'' && S8.last a' == '\'' = S.tail $ S.init a'
+      | otherwise = a'
+  go = decodeUtf8With lenientDecode
 
-askHandlerEnv :: MonadHandler m => m (RunHandlerEnv (HandlerSite m) (HandlerSite m))
-askHandlerEnv = liftHandler $ HandlerFor $ return . handlerEnv
+askHandlerEnv ::
+  (MonadHandler m) => m (RunHandlerEnv (HandlerSite m) (HandlerSite m))
+askHandlerEnv = liftHandler $ HandlerFor $ pure . handlerEnv
 
 -- | Get the master site application argument.
-getYesod :: MonadHandler m => m (HandlerSite m)
+getYesod :: (MonadHandler m) => m (HandlerSite m)
 getYesod = rheSite <$> askHandlerEnv
 
 -- | Get a specific component of the master site application argument.
 --   Analogous to the 'gets' function for operating on 'StateT'.
-getsYesod :: MonadHandler m => (HandlerSite m -> a) -> m a
-getsYesod f = (f . rheSite) <$> askHandlerEnv
+getsYesod :: (MonadHandler m) => (HandlerSite m -> a) -> m a
+getsYesod f = f . rheSite <$> askHandlerEnv
 
 -- | Get the URL rendering function.
-getUrlRender :: MonadHandler m => m (Route (HandlerSite m) -> Text)
+getUrlRender :: (MonadHandler m) => m (Route (HandlerSite m) -> Text)
 getUrlRender = do
-    x <- rheRender <$> askHandlerEnv
-    return $ flip x []
+  x <- rheRender <$> askHandlerEnv
+  pure (`x` [])
 
 -- | The URL rendering function with query-string parameters.
-getUrlRenderParams
-    :: MonadHandler m
-    => m (Route (HandlerSite m) -> [(Text, Text)] -> Text)
+getUrlRenderParams ::
+  (MonadHandler m) =>
+  m (Route (HandlerSite m) -> [(Text, Text)] -> Text)
 getUrlRenderParams = rheRender <$> askHandlerEnv
 
 -- | Get all the post parameters passed to the handler. To also get
@@ -361,16 +418,14 @@ getUrlRenderParams = rheRender <$> askHandlerEnv
 -- instead of this function.
 --
 -- @since 1.4.33
-getPostParams
-  :: MonadHandler m
-  => m [(Text, Text)]
-getPostParams = do
-  reqBodyContent <- runRequestBody
-  return $ fst reqBodyContent
+getPostParams ::
+  (MonadHandler m) =>
+  m [(Text, Text)]
+getPostParams = fst <$> runRequestBody
 
 -- | Get the route requested by the user. If this is a 404 response- where the
--- user requested an invalid route- this function will return 'Nothing'.
-getCurrentRoute :: MonadHandler m => m (Maybe (Route (HandlerSite m)))
+-- user requested an invalid route- this function will pure 'Nothing'.
+getCurrentRoute :: (MonadHandler m) => m (Maybe (Route (HandlerSite m)))
 getCurrentRoute = rheRoute <$> askHandlerEnv
 
 -- | Returns a function that runs 'HandlerFor' actions inside @IO@.
@@ -409,50 +464,47 @@ getCurrentRoute = rheRoute <$> askHandlerEnv
 -- This allows the inner 'HandlerFor' to outlive the outer
 -- 'HandlerFor' (e.g., on the @forkIO@ example above, a response
 -- may be sent to the client without killing the new thread).
-handlerToIO :: MonadIO m => HandlerFor site (HandlerFor site a -> m a)
-handlerToIO =
-  HandlerFor $ \oldHandlerData -> do
-    -- Take just the bits we need from oldHandlerData.
-    let newReq = oldReq { reqWaiRequest = newWaiReq }
-          where
-            oldReq    = handlerRequest oldHandlerData
-            oldWaiReq = reqWaiRequest oldReq
-#if MIN_VERSION_wai(3,2,4)
-            newWaiReq =
-                W.setRequestBodyChunks (return mempty) $
-                    oldWaiReq { W.requestBodyLength = W.KnownLength 0 }
-#else
-            newWaiReq = oldWaiReq { W.requestBody = return mempty
-                                  , W.requestBodyLength = W.KnownLength 0
-                                  }
-#endif
-        oldEnv = handlerEnv oldHandlerData
-    newState <- liftIO $ do
-      oldState <- I.readIORef (handlerState oldHandlerData)
-      return $ oldState { ghsRBC = Nothing
-                        , ghsIdent = 1
-                        , ghsCache = mempty
-                        , ghsCacheBy = mempty
-                        , ghsHeaders = mempty }
+handlerToIO :: (MonadIO m) => HandlerFor site (HandlerFor site a -> m a)
+handlerToIO = HandlerFor $ \oldHandlerData -> do
+  -- Take just the bits we need from oldHandlerData.
+  let newReq = oldReq{reqWaiRequest = newWaiReq}
+       where
+        oldReq = handlerRequest oldHandlerData
+        oldWaiReq = reqWaiRequest oldReq
+        newWaiReq =
+          W.setRequestBodyChunks (pure mempty) $
+            oldWaiReq{W.requestBodyLength = W.KnownLength 0}
+      oldEnv = handlerEnv oldHandlerData
+  newState <- liftIO $ do
+    oldState <- I.readIORef (handlerState oldHandlerData)
+    pure $
+      oldState
+        { ghsRBC = Nothing
+        , ghsIdent = 1
+        , ghsCache = mempty
+        , ghsCacheBy = mempty
+        , ghsHeaders = mempty
+        }
 
-    -- xx From this point onwards, no references to oldHandlerData xx
-    liftIO $ evaluate (newReq `seq` oldEnv `seq` newState `seq` ())
+  -- xx From this point onwards, no references to oldHandlerData xx
+  liftIO $ evaluate (newReq `seq` oldEnv `seq` newState `seq` ())
 
-    -- Return HandlerFor running function.
-    return $ \(HandlerFor f) ->
-      liftIO $
-      runResourceT $ withInternalState $ \resState -> do
-        -- The state IORef needs to be created here, otherwise it
-        -- will be shared by different invocations of this function.
-        newStateIORef <- liftIO (I.newIORef newState)
-        let newHandlerData =
-              HandlerData
-                { handlerRequest  = newReq
-                , handlerEnv      = oldEnv
-                , handlerState    = newStateIORef
-                , handlerResource = resState
-                }
-        liftIO (f newHandlerData)
+  -- Return HandlerFor running function.
+  pure $ \(HandlerFor f) ->
+    liftIO $
+      runResourceT $
+        withInternalState $ \resState -> do
+          -- The state IORef needs to be created here, otherwise it
+          -- will be shared by different invocations of this function.
+          newStateIORef <- liftIO (I.newIORef newState)
+          let newHandlerData =
+                HandlerData
+                  { handlerRequest = newReq
+                  , handlerEnv = oldEnv
+                  , handlerState = newStateIORef
+                  , handlerResource = resState
+                  }
+          liftIO (f newHandlerData)
 
 -- | forkIO for a Handler (run an action in the background)
 --
@@ -460,13 +512,18 @@ handlerToIO =
 -- for correctness and efficiency
 --
 -- @since 1.2.8
-forkHandler :: (SomeException -> HandlerFor site ()) -- ^ error handler
-              -> HandlerFor site ()
-              -> HandlerFor site ()
+forkHandler ::
+  -- | error handler
+  (SomeException -> HandlerFor site ()) ->
+  HandlerFor site () ->
+  HandlerFor site ()
 forkHandler onErr handler = do
-    yesRunner <- handlerToIO
-    void $ liftResourceT $ resourceForkIO $
-      liftIO $ handle (yesRunner . onErr) (yesRunner handler)
+  yesRunner <- handlerToIO
+  void
+    . liftResourceT
+    . resourceForkIO
+    . liftIO
+    $ handle (yesRunner . onErr) (yesRunner handler)
 
 -- | Redirect to the given route.
 -- HTTP status code 303 for HTTP 1.1 clients and 302 for HTTP 1.0
@@ -475,24 +532,26 @@ forkHandler onErr handler = do
 --
 -- If you want direct control of the final status code, or need a different
 -- status code, please use 'redirectWith'.
-redirect :: (MonadHandler m, RedirectUrl (HandlerSite m) url)
-         => url -> m a
+redirect ::
+  (MonadHandler m, RedirectUrl (HandlerSite m) url) =>
+  url -> m a
 redirect url = do
-    req <- waiRequest
-    let status =
-            if W.httpVersion req == H.http11
-                then H.status303
-                else H.status302
-    redirectWith status url
+  req <- waiRequest
+  let status =
+        if W.httpVersion req == H.http11
+          then H.status303
+          else H.status302
+  redirectWith status url
 
 -- | Redirect to the given URL with the specified status code.
-redirectWith :: (MonadHandler m, RedirectUrl (HandlerSite m) url)
-             => H.Status
-             -> url
-             -> m a
+redirectWith ::
+  (MonadHandler m, RedirectUrl (HandlerSite m) url) =>
+  H.Status ->
+  url ->
+  m a
 redirectWith status url = do
-    urlText <- toTextUrl url
-    handlerError $ HCRedirect status urlText
+  urlText <- toTextUrl url
+  handlerError $ HCRedirect status urlText
 
 ultDestKey :: Text
 ultDestKey = "_ULT"
@@ -501,38 +560,41 @@ ultDestKey = "_ULT"
 --
 -- An ultimate destination is stored in the user session and can be loaded
 -- later by 'redirectUltDest'.
-setUltDest :: (MonadHandler m, RedirectUrl (HandlerSite m) url)
-           => url
-           -> m ()
+setUltDest ::
+  (MonadHandler m, RedirectUrl (HandlerSite m) url) =>
+  url ->
+  m ()
 setUltDest url = do
-    urlText <- toTextUrl url
-    setSession ultDestKey urlText
+  urlText <- toTextUrl url
+  setSession ultDestKey urlText
 
 -- | Same as 'setUltDest', but uses the current page.
 --
 -- If this is a 404 handler, there is no current page, and then this call does
 -- nothing.
-setUltDestCurrent :: MonadHandler m => m ()
+setUltDestCurrent :: (MonadHandler m) => m ()
 setUltDestCurrent = do
-    route <- getCurrentRoute
-    case route of
-        Nothing -> return ()
-        Just r -> do
-            gets' <- reqGetParams <$> getRequest
-            setUltDest (r, gets')
+  route <- getCurrentRoute
+  case route of
+    Nothing -> pure ()
+    Just r -> do
+      gets' <- reqGetParams <$> getRequest
+      setUltDest (r, gets')
 
 -- | Sets the ultimate destination to the referer request header, if present.
 --
 -- This function will not overwrite an existing ultdest.
-setUltDestReferer :: MonadHandler m => m ()
+setUltDestReferer :: (MonadHandler m) => m ()
 setUltDestReferer = do
-    mdest <- lookupSession ultDestKey
-    maybe
-        (waiRequest >>= maybe (return ()) setUltDestBS . lookup "referer" . W.requestHeaders)
-        (const $ return ())
-        mdest
-  where
-    setUltDestBS = setUltDest . T.pack . S8.unpack
+  mdest <- lookupSession ultDestKey
+  maybe
+    ( waiRequest
+        >>= maybe (pure ()) setUltDestBS . lookup "referer" . W.requestHeaders
+    )
+    (const $ pure ())
+    mdest
+ where
+  setUltDestBS = setUltDest . T.pack . S8.unpack
 
 -- | Redirect to the ultimate destination in the user's session. Clear the
 -- value from the session.
@@ -541,16 +603,18 @@ setUltDestReferer = do
 --
 -- This function uses 'redirect', and thus will perform a temporary redirect to
 -- a GET request.
-redirectUltDest :: (RedirectUrl (HandlerSite m) url, MonadHandler m)
-                => url -- ^ default destination if nothing in session
-                -> m a
+redirectUltDest ::
+  (RedirectUrl (HandlerSite m) url, MonadHandler m) =>
+  -- | default destination if nothing in session
+  url ->
+  m a
 redirectUltDest defaultDestination = do
-    mdest <- lookupSession ultDestKey
-    deleteSession ultDestKey
-    maybe (redirect defaultDestination) redirect mdest
+  mdest <- lookupSession ultDestKey
+  deleteSession ultDestKey
+  maybe (redirect defaultDestination) redirect mdest
 
 -- | Remove a previously set ultimate destination. See 'setUltDest'.
-clearUltDest :: MonadHandler m => m ()
+clearUltDest :: (MonadHandler m) => m ()
 clearUltDest = deleteSession ultDestKey
 
 msgKey :: Text
@@ -561,60 +625,66 @@ msgKey = "_MSG"
 -- See 'getMessages'.
 --
 -- @since 1.4.20
-addMessage :: MonadHandler m
-           => Text -- ^ status
-           -> Html -- ^ message
-           -> m ()
+addMessage ::
+  (MonadHandler m) =>
+  -- | status
+  Text ->
+  -- | message
+  Html ->
+  m ()
 addMessage status msg = do
-    val <- lookupSessionBS msgKey
-    setSessionBS msgKey $ addMsg val
-  where
-    addMsg = maybe msg' (S.append msg' . S.cons W8._nul)
-    msg' = S.append
-        (encodeUtf8 status)
-        (W8._nul `S.cons` L.toStrict (renderHtml msg))
+  val <- lookupSessionBS msgKey
+  setSessionBS msgKey $ addMsg val
+ where
+  addMsg = maybe msg' (S.append msg' . S.cons W8._nul)
+  msg' =
+    S.append
+      (encodeUtf8 status)
+      (W8._nul `S.cons` L.toStrict (renderHtml msg))
 
 -- | Adds a message in the user's session but uses RenderMessage to allow for i18n
 --
 -- See 'getMessages'.
 --
 -- @since 1.4.20
-addMessageI :: (MonadHandler m, RenderMessage (HandlerSite m) msg)
-            => Text -> msg -> m ()
+addMessageI ::
+  (MonadHandler m, RenderMessage (HandlerSite m) msg) =>
+  Text -> msg -> m ()
 addMessageI status msg = do
-    mr <- getMessageRender
-    addMessage status $ toHtml $ mr msg
+  mr <- getMessageRender
+  addMessage status $ toHtml $ mr msg
 
 -- | Gets all messages in the user's session, and then clears the variable.
 --
 -- See 'addMessage'.
 --
 -- @since 1.4.20
-getMessages :: MonadHandler m => m [(Text, Html)]
+getMessages :: (MonadHandler m) => m [(Text, Html)]
 getMessages = do
-    bs <- lookupSessionBS msgKey
-    let ms = maybe [] enlist bs
-    deleteSession msgKey
-    return ms
-  where
-    enlist = pairup . S.split W8._nul
-    pairup [] = []
-    pairup [_] = []
-    pairup (s:v:xs) = (decode s, preEscapedToHtml (decode v)) : pairup xs
-    decode = decodeUtf8With lenientDecode
+  bs <- lookupSessionBS msgKey
+  let ms = maybe [] enlist bs
+  deleteSession msgKey
+  pure ms
+ where
+  enlist = pairup . S.split W8._nul
+  pairup [] = []
+  pairup [_] = []
+  pairup (s : v : xs) = (decode s, preEscapedToHtml (decode v)) : pairup xs
+  decode = decodeUtf8With lenientDecode
 
 -- | Calls 'addMessage' with an empty status
-setMessage :: MonadHandler m => Html -> m ()
+setMessage :: (MonadHandler m) => Html -> m ()
 setMessage = addMessage ""
 
 -- | Calls 'addMessageI' with an empty status
-setMessageI :: (MonadHandler m, RenderMessage (HandlerSite m) msg)
-            => msg -> m ()
+setMessageI ::
+  (MonadHandler m, RenderMessage (HandlerSite m) msg) =>
+  msg -> m ()
 setMessageI = addMessageI ""
 
 -- | Gets just the last message in the user's session,
 -- discards the rest and the status
-getMessage :: MonadHandler m => m (Maybe Html)
+getMessage :: (MonadHandler m) => m (Maybe Html)
 getMessage = fmap (fmap snd . listToMaybe) getMessages
 
 -- $rollbackWarning
@@ -635,23 +705,29 @@ getMessage = fmap (fmap snd . listToMaybe) getMessages
 --
 -- For some backends, this is more efficient than reading in the file to
 -- memory, since they can optimize file sending via a system call to sendfile.
-sendFile :: MonadHandler m => ContentType -> FilePath -> m a
+sendFile :: (MonadHandler m) => ContentType -> FilePath -> m a
 sendFile ct fp = handlerError $ HCSendFile ct fp Nothing
 
 -- | Same as 'sendFile', but only sends part of a file.
-sendFilePart :: MonadHandler m
-             => ContentType
-             -> FilePath
-             -> Integer -- ^ offset
-             -> Integer -- ^ count
-             -> m a
+sendFilePart ::
+  (MonadHandler m) =>
+  ContentType ->
+  FilePath ->
+  -- | offset
+  Integer ->
+  -- | count
+  Integer ->
+  m a
 sendFilePart ct fp off count = do
-    fs <- liftIO $ PC.getFileStatus fp
-    handlerError $ HCSendFile ct fp $ Just W.FilePart
-        { W.filePartOffset = off
-        , W.filePartByteCount = count
-        , W.filePartFileSize = fromIntegral $ PC.fileSize fs
-        }
+  fs <- liftIO $ PC.getFileStatus fp
+  handlerError $
+    HCSendFile ct fp $
+      Just
+        W.FilePart
+          { W.filePartOffset = off
+          , W.filePartByteCount = count
+          , W.filePartFileSize = fromIntegral $ PC.fileSize fs
+          }
 
 -- | Bypass remaining handler code and output the given content with a 200
 -- status code.
@@ -672,15 +748,15 @@ sendStatusJSON s v = sendResponseStatus s (toEncoding v)
 
 -- | Send a 201 "Created" response with the given route as the Location
 -- response header.
-sendResponseCreated :: MonadHandler m => Route (HandlerSite m) -> m a
+sendResponseCreated :: (MonadHandler m) => Route (HandlerSite m) -> m a
 sendResponseCreated url = do
-    r <- getUrlRender
-    handlerError $ HCCreated $ r url
+  r <- getUrlRender
+  handlerError $ HCCreated $ r url
 
 -- | Bypass remaining handler code and output no content with a 204 status code.
 --
 -- @since 1.6.9
-sendResponseNoContent :: MonadHandler m => m a
+sendResponseNoContent :: (MonadHandler m) => m a
 sendResponseNoContent = sendWaiResponse $ W.responseBuilder H.status204 [] mempty
 
 -- | Send a 'W.Response'. Please note: this function is rarely
@@ -688,13 +764,13 @@ sendResponseNoContent = sendWaiResponse $ W.responseBuilder H.status204 [] mempt
 -- that you have already specified. This function short-circuits. It should be
 -- considered only for very specific needs. If you are not sure if you need it,
 -- you don't.
-sendWaiResponse :: MonadHandler m => W.Response -> m b
+sendWaiResponse :: (MonadHandler m) => W.Response -> m b
 sendWaiResponse = handlerError . HCWai
 
 -- | Switch over to handling the current request with a WAI @Application@.
 --
 -- @since 1.2.17
-sendWaiApplication :: MonadHandler m => W.Application -> m b
+sendWaiApplication :: (MonadHandler m) => W.Application -> m b
 sendWaiApplication = handlerError . HCWaiApp
 
 -- | Send a raw response without conduit. This is used for cases such as
@@ -702,114 +778,132 @@ sendWaiApplication = handlerError . HCWaiApp
 -- responses (e.g., Warp).
 --
 -- @since 1.2.16
-sendRawResponseNoConduit
-    :: (MonadHandler m, MonadUnliftIO m)
-    => (IO S8.ByteString -> (S8.ByteString -> IO ()) -> m ())
-    -> m a
+sendRawResponseNoConduit ::
+  (MonadHandler m, MonadUnliftIO m) =>
+  (IO S8.ByteString -> (S8.ByteString -> IO ()) -> m ()) ->
+  m a
 sendRawResponseNoConduit raw = withRunInIO $ \runInIO ->
-    liftIO $ throwIO $ HCWai $ flip W.responseRaw fallback
-    $ \src sink -> void $ runInIO (raw src sink)
-  where
-    fallback = W.responseLBS H.status500 [("Content-Type", "text/plain")]
-        "sendRawResponse: backend does not support raw responses"
+  liftIO $
+    throwIO $
+      HCWai $
+        flip W.responseRaw fallback $
+          \src sink -> void $ runInIO (raw src sink)
+ where
+  fallback =
+    W.responseLBS
+      H.status500
+      [("Content-Type", "text/plain")]
+      "sendRawResponse: backend does not support raw responses"
 
 -- | Send a raw response. This is used for cases such as WebSockets. Requires
 -- WAI 2.1 or later, and a web server which supports raw responses (e.g.,
 -- Warp).
 --
 -- @since 1.2.7
-sendRawResponse
-  :: (MonadHandler m, MonadUnliftIO m)
-  => (ConduitT () S8.ByteString IO () -> ConduitT S8.ByteString Void IO () -> m ())
-  -> m a
+sendRawResponse ::
+  (MonadHandler m, MonadUnliftIO m) =>
+  (ConduitT () S8.ByteString IO () -> ConduitT S8.ByteString Void IO () -> m ()) ->
+  m a
 sendRawResponse raw = withRunInIO $ \runInIO ->
-    liftIO $ throwIO $ HCWai $ flip W.responseRaw fallback
-    $ \src sink -> void $ runInIO $ raw (src' src) (CL.mapM_ sink)
-  where
-    fallback = W.responseLBS H.status500 [("Content-Type", "text/plain")]
-        "sendRawResponse: backend does not support raw responses"
-    src' src = do
-        bs <- liftIO src
-        unless (S.null bs) $ do
-            yield bs
-            src' src
+  liftIO $
+    throwIO $
+      HCWai $
+        flip W.responseRaw fallback $
+          \src sink -> void $ runInIO $ raw (src' src) (CL.mapM_ sink)
+ where
+  fallback =
+    W.responseLBS
+      H.status500
+      [("Content-Type", "text/plain")]
+      "sendRawResponse: backend does not support raw responses"
+  src' src = do
+    bs <- liftIO src
+    unless (S.null bs) $ do
+      yield bs
+      src' src
 
 -- | Send a 304 not modified response immediately. This is a short-circuiting
 -- action.
 --
 -- @since 1.4.4
-notModified :: MonadHandler m => m a
+notModified :: (MonadHandler m) => m a
 notModified = sendWaiResponse $ W.responseBuilder H.status304 [] mempty
 
 -- | Return a 404 not found page. Also denotes no handler available.
-notFound :: MonadHandler m => m a
+notFound :: (MonadHandler m) => m a
 notFound = hcError NotFound
 
 -- | Return a 405 method not supported page.
-badMethod :: MonadHandler m => m a
+badMethod :: (MonadHandler m) => m a
 badMethod = do
-    w <- waiRequest
-    hcError $ BadMethod $ W.requestMethod w
+  w <- waiRequest
+  hcError $ BadMethod $ W.requestMethod w
 
 -- | Return a 401 status code
-notAuthenticated :: MonadHandler m => m a
+notAuthenticated :: (MonadHandler m) => m a
 notAuthenticated = hcError NotAuthenticated
 
 -- | Return a 403 permission denied page.
-permissionDenied :: MonadHandler m => Text -> m a
+permissionDenied :: (MonadHandler m) => Text -> m a
 permissionDenied = hcError . PermissionDenied
 
 -- | Return a 403 permission denied page.
-permissionDeniedI :: (RenderMessage (HandlerSite m) msg, MonadHandler m)
-                  => msg
-                  -> m a
+permissionDeniedI ::
+  (RenderMessage (HandlerSite m) msg, MonadHandler m) =>
+  msg ->
+  m a
 permissionDeniedI msg = do
-    mr <- getMessageRender
-    permissionDenied $ mr msg
+  mr <- getMessageRender
+  permissionDenied $ mr msg
 
 -- | Return a 400 invalid arguments page.
-invalidArgs :: MonadHandler m => [Text] -> m a
+invalidArgs :: (MonadHandler m) => [Text] -> m a
 invalidArgs = hcError . InvalidArgs
 
 -- | Return a 400 invalid arguments page.
-invalidArgsI :: (MonadHandler m, RenderMessage (HandlerSite m) msg) => [msg] -> m a
+invalidArgsI ::
+  (MonadHandler m, RenderMessage (HandlerSite m) msg) => [msg] -> m a
 invalidArgsI msg = do
-    mr <- getMessageRender
-    invalidArgs $ map mr msg
+  mr <- getMessageRender
+  invalidArgs $ map mr msg
 
 ------- Headers
--- | Set the cookie on the client.
 
-setCookie :: MonadHandler m => SetCookie -> m ()
+-- | Set the cookie on the client.
+setCookie :: (MonadHandler m) => SetCookie -> m ()
 setCookie sc = do
   addHeaderInternal (DeleteCookie name path)
   addHeaderInternal (AddCookie sc)
-  where name = setCookieName sc
-        path = maybe "/" id (setCookiePath sc)
+ where
+  name = setCookieName sc
+  path = fromMaybe "/" (setCookiePath sc)
 
 -- | Helper function for setCookieExpires value
-getExpires :: MonadIO m
-           => Int -- ^ minutes
-           -> m UTCTime
+getExpires ::
+  (MonadIO m) =>
+  -- | minutes
+  Int ->
+  m UTCTime
 getExpires m = do
-    now <- liftIO getCurrentTime
-    return $ fromIntegral (m * 60) `addUTCTime` now
-
+  now <- liftIO getCurrentTime
+  pure $ fromIntegral (m * 60) `addUTCTime` now
 
 -- | Unset the cookie on the client.
 --
 -- Note: although the value used for key and path is 'Text', you should only
 -- use ASCII values to be HTTP compliant.
-deleteCookie :: MonadHandler m
-             => Text -- ^ key
-             -> Text -- ^ path
-             -> m ()
+deleteCookie ::
+  (MonadHandler m) =>
+  -- | key
+  Text ->
+  -- | path
+  Text ->
+  m ()
 deleteCookie a = addHeaderInternal . DeleteCookie (encodeUtf8 a) . encodeUtf8
-
 
 -- | Set the language in the user session. Will show up in 'languages' on the
 -- next request.
-setLanguage :: MonadHandler m => Text -> m ()
+setLanguage :: (MonadHandler m) => Text -> m ()
 setLanguage = setSession langKey
 
 -- | Set attachment file name.
@@ -821,16 +915,18 @@ setLanguage = setSession langKey
 -- <https://tools.ietf.org/html/rfc6266 RFC 6266>(<https://tools.ietf.org/html/rfc5987 RFC 5987>)
 --
 -- @since 1.6.4
-addContentDispositionFileName :: MonadHandler m => T.Text -> m ()
-addContentDispositionFileName fileName
-    = addHeader "Content-Disposition" $ rfc6266Utf8FileName fileName
+addContentDispositionFileName :: (MonadHandler m) => T.Text -> m ()
+addContentDispositionFileName fileName =
+  addHeader "Content-Disposition" $ rfc6266Utf8FileName fileName
 
 -- | <https://tools.ietf.org/html/rfc6266 RFC 6266> Unicode attachment filename.
 --
 -- > rfc6266Utf8FileName (Data.Text.pack "€")
 -- "attachment; filename*=UTF-8''%E2%82%AC"
 rfc6266Utf8FileName :: T.Text -> T.Text
-rfc6266Utf8FileName fileName = "attachment; filename*=UTF-8''" `mappend` decodeUtf8 (H.urlEncode True (encodeUtf8 fileName))
+rfc6266Utf8FileName fileName =
+  "attachment; filename*=UTF-8''"
+    <> decodeUtf8 (H.urlEncode True (encodeUtf8 fileName))
 
 -- | Set an arbitrary response header.
 --
@@ -838,11 +934,11 @@ rfc6266Utf8FileName fileName = "attachment; filename*=UTF-8''" `mappend` decodeU
 -- ASCII value to be HTTP compliant.
 --
 -- @since 1.2.0
-addHeader :: MonadHandler m => Text -> Text -> m ()
+addHeader :: (MonadHandler m) => Text -> Text -> m ()
 addHeader a = addHeaderInternal . Header (CI.mk $ encodeUtf8 a) . encodeUtf8
 
 -- | Deprecated synonym for addHeader.
-setHeader :: MonadHandler m => Text -> Text -> m ()
+setHeader :: (MonadHandler m) => Text -> Text -> m ()
 setHeader = addHeader
 {-# DEPRECATED setHeader "Please use addHeader instead" #-}
 
@@ -853,74 +949,77 @@ setHeader = addHeader
 -- ASCII value to be HTTP compliant.
 --
 -- @since 1.4.36
-replaceOrAddHeader :: MonadHandler m => Text -> Text -> m ()
+replaceOrAddHeader :: (MonadHandler m) => Text -> Text -> m ()
 replaceOrAddHeader a b =
-  modify $ \g -> g {ghsHeaders = replaceHeader (ghsHeaders g)}
-  where
-    repHeader = Header (CI.mk $ encodeUtf8 a) (encodeUtf8 b)
+  modify $ \g -> g{ghsHeaders = replaceHeader (ghsHeaders g)}
+ where
+  repHeader = Header (CI.mk $ encodeUtf8 a) (encodeUtf8 b)
 
-    sameHeaderName :: Header -> Header -> Bool
-    sameHeaderName (Header n1 _) (Header n2 _) = n1 == n2
-    sameHeaderName _ _ = False
+  sameHeaderName :: Header -> Header -> Bool
+  sameHeaderName (Header n1 _) (Header n2 _) = n1 == n2
+  sameHeaderName _ _ = False
 
-    replaceIndividualHeader :: [Header] -> [Header]
-    replaceIndividualHeader [] = [repHeader]
-    replaceIndividualHeader xs = aux xs []
-      where
-        aux [] acc = acc ++ [repHeader]
-        aux (x:xs') acc =
-          if sameHeaderName repHeader x
-            then acc ++
-                 [repHeader] ++
-                 (filter (\header -> not (sameHeaderName header repHeader)) xs')
-            else aux xs' (acc ++ [x])
+  replaceIndividualHeader :: [Header] -> [Header]
+  replaceIndividualHeader [] = [repHeader]
+  replaceIndividualHeader xs = aux xs []
+   where
+    aux [] acc = acc ++ [repHeader]
+    aux (x : xs') acc =
+      if sameHeaderName repHeader x
+        then
+          acc
+            ++ [repHeader]
+            ++ filter (\header -> not (sameHeaderName header repHeader)) xs'
+        else aux xs' (acc ++ [x])
 
-    replaceHeader :: Endo [Header] -> Endo [Header]
-    replaceHeader endo =
-      let allHeaders :: [Header] = appEndo endo []
-      in Endo (\rest -> replaceIndividualHeader allHeaders ++ rest)
+  replaceHeader :: Endo [Header] -> Endo [Header]
+  replaceHeader endo =
+    let allHeaders :: [Header] = appEndo endo []
+     in Endo (\rest -> replaceIndividualHeader allHeaders ++ rest)
 
 -- | Set the Cache-Control header to indicate this response should be cached
 -- for the given number of seconds.
-cacheSeconds :: MonadHandler m => Int -> m ()
-cacheSeconds i = setHeader "Cache-Control" $ T.concat
-    [ "max-age="
-    , T.pack $ show i
-    , ", public"
-    ]
+cacheSeconds :: (MonadHandler m) => Int -> m ()
+cacheSeconds i =
+  setHeader "Cache-Control" $
+    T.concat
+      [ "max-age="
+      , T.pack $ show i
+      , ", public"
+      ]
 
 -- | Set the Expires header to some date in 2037. In other words, this content
 -- is never (realistically) expired.
-neverExpires :: MonadHandler m => m ()
+neverExpires :: (MonadHandler m) => m ()
 neverExpires = do
-    setHeader "Expires" . rheMaxExpires =<< askHandlerEnv
-    cacheSeconds oneYear
-  where
-    oneYear :: Int
-    oneYear = 60 * 60 * 24 * 365
+  setHeader "Expires" . rheMaxExpires =<< askHandlerEnv
+  cacheSeconds oneYear
+ where
+  oneYear :: Int
+  oneYear = 60 * 60 * 24 * 365
 
 -- | Set an Expires header in the past, meaning this content should not be
 -- cached.
-alreadyExpired :: MonadHandler m => m ()
+alreadyExpired :: (MonadHandler m) => m ()
 alreadyExpired = setHeader "Expires" "Thu, 01 Jan 1970 05:05:05 GMT"
 
 -- | Set an Expires header to the given date.
-expiresAt :: MonadHandler m => UTCTime -> m ()
+expiresAt :: (MonadHandler m) => UTCTime -> m ()
 expiresAt = setHeader "Expires" . formatRFC1123
 
 data Etag
-  = WeakEtag !S.ByteString
-  -- ^ Prefixed by W/ and surrounded in quotes. Signifies that contents are
-  -- semantically identical but make no guarantees about being bytewise identical.
-  | StrongEtag !S.ByteString
-  -- ^ Signifies that contents should be byte-for-byte identical if they match
-  -- the provided ETag
-  | InvalidEtag !S.ByteString
-  -- ^ Anything else that ends up in a header that expects an ETag but doesn't
-  -- properly follow the ETag format specified in RFC 7232, section 2.3
+  = -- | Prefixed by W/ and surrounded in quotes. Signifies that contents are
+    -- semantically identical but make no guarantees about being bytewise identical.
+    WeakEtag !S.ByteString
+  | -- | Signifies that contents should be byte-for-byte identical if they match
+    -- the provided ETag
+    StrongEtag !S.ByteString
+  | -- | Anything else that ends up in a header that expects an ETag but doesn't
+    -- properly follow the ETag format specified in RFC 7232, section 2.3
+    InvalidEtag !S.ByteString
   deriving (Show, Eq)
 
--- | Check the if-none-match header and, if it matches the given value, return
+-- | Check the if-none-match header and, if it matches the given value, pure
 -- a 304 not modified response. Otherwise, set the etag header to the given
 -- value.
 --
@@ -929,37 +1028,36 @@ data Etag
 -- function.
 --
 -- @since 1.4.4
-setEtag :: MonadHandler m => Text -> m ()
+setEtag :: (MonadHandler m) => Text -> m ()
 setEtag etag = do
-    mmatch <- lookupHeader "if-none-match"
-    let matches = maybe [] parseMatch mmatch
-        baseTag = encodeUtf8 etag
-        strongTag = StrongEtag baseTag
-        badTag = InvalidEtag baseTag
-    if any (\tag -> tag == strongTag || tag == badTag) matches
-        then notModified
-        else addHeader "etag" $ T.concat ["\"", etag, "\""]
-
+  mmatch <- lookupHeader "if-none-match"
+  let matches = maybe [] parseMatch mmatch
+      baseTag = encodeUtf8 etag
+      strongTag = StrongEtag baseTag
+      badTag = InvalidEtag baseTag
+  if any (\tag -> tag == strongTag || tag == badTag) matches
+    then notModified
+    else addHeader "etag" $ T.concat ["\"", etag, "\""]
 
 -- | Parse an if-none-match field according to the spec.
 parseMatch :: S.ByteString -> [Etag]
 parseMatch =
-    map clean . S.split W8._comma
-  where
-    clean = classify . fst . S.spanEnd W8.isSpace . S.dropWhile W8.isSpace
+  map clean . S.split W8._comma
+ where
+  clean = classify . fst . S.spanEnd W8.isSpace . S.dropWhile W8.isSpace
 
-    classify bs
-        | S.length bs >= 2 && S.head bs == W8._quotedbl && S.last bs == W8._quotedbl
-            = StrongEtag $ S.init $ S.tail bs
-        | S.length bs >= 4 &&
-          S.head bs == W8._W &&
-          S.index bs 1 == W8._slash &&
-          S.index bs 2 == W8._quotedbl &&
-          S.last bs == W8._quotedbl
-            = WeakEtag $ S.init $ S.drop 3 bs
-        | otherwise = InvalidEtag bs
+  classify bs
+    | S.length bs >= 2 && S.head bs == W8._quotedbl && S.last bs == W8._quotedbl =
+        StrongEtag $ S.init $ S.tail bs
+    | S.length bs >= 4
+        && S.head bs == W8._W
+        && S.index bs 1 == W8._slash
+        && S.index bs 2 == W8._quotedbl
+        && S.last bs == W8._quotedbl =
+        WeakEtag $ S.init $ S.drop 3 bs
+    | otherwise = InvalidEtag bs
 
--- | Check the if-none-match header and, if it matches the given value, return
+-- | Check the if-none-match header and, if it matches the given value, pure
 -- a 304 not modified response. Otherwise, set the etag header to the given
 -- value.
 --
@@ -973,72 +1071,76 @@ parseMatch =
 -- function.
 --
 -- @since 1.4.37
-setWeakEtag :: MonadHandler m => Text -> m ()
+setWeakEtag :: (MonadHandler m) => Text -> m ()
 setWeakEtag etag = do
-    mmatch <- lookupHeader "if-none-match"
-    let matches = maybe [] parseMatch mmatch
-    if WeakEtag (encodeUtf8 etag) `elem` matches
-        then notModified
-        else addHeader "etag" $ T.concat ["W/\"", etag, "\""]
+  mmatch <- lookupHeader "if-none-match"
+  let matches = maybe [] parseMatch mmatch
+  if WeakEtag (encodeUtf8 etag) `elem` matches
+    then notModified
+    else addHeader "etag" $ T.concat ["W/\"", etag, "\""]
 
 -- | Set a variable in the user's session.
 --
 -- The session is handled by the clientsession package: it sets an encrypted
 -- and hashed cookie on the client. This ensures that all data is secure and
 -- not tampered with.
-setSession :: MonadHandler m
-           => Text -- ^ key
-           -> Text -- ^ value
-           -> m ()
+setSession ::
+  (MonadHandler m) =>
+  -- | key
+  Text ->
+  -- | value
+  Text ->
+  m ()
 setSession k = setSessionBS k . encodeUtf8
 
 -- | Same as 'setSession', but uses binary data for the value.
-setSessionBS :: MonadHandler m
-             => Text
-             -> S.ByteString
-             -> m ()
+setSessionBS ::
+  (MonadHandler m) =>
+  Text ->
+  S.ByteString ->
+  m ()
 setSessionBS k = modify . modSession . Map.insert k
 
 -- | Unsets a session variable. See 'setSession'.
-deleteSession :: MonadHandler m => Text -> m ()
+deleteSession :: (MonadHandler m) => Text -> m ()
 deleteSession = modify . modSession . Map.delete
 
 -- | Clear all session variables.
 --
 -- @since: 1.0.1
-clearSession :: MonadHandler m => m ()
-clearSession = modify $ \x -> x { ghsSession = Map.empty }
+clearSession :: (MonadHandler m) => m ()
+clearSession = modify $ \x -> x{ghsSession = Map.empty}
 
 modSession :: (SessionMap -> SessionMap) -> GHState -> GHState
-modSession f x = x { ghsSession = f $ ghsSession x }
+modSession f x = x{ghsSession = f $ ghsSession x}
 
 -- | Internal use only, not to be confused with 'setHeader'.
-addHeaderInternal :: MonadHandler m => Header -> m ()
+addHeaderInternal :: (MonadHandler m) => Header -> m ()
 addHeaderInternal = tell . Endo . (:)
 
 -- | Some value which can be turned into a URL for redirects.
 class RedirectUrl master a where
-    -- | Converts the value to the URL and a list of query-string parameters.
-    toTextUrl :: (MonadHandler m, HandlerSite m ~ master) => a -> m Text
+  -- | Converts the value to the URL and a list of query-string parameters.
+  toTextUrl :: (MonadHandler m, HandlerSite m ~ master) => a -> m Text
 
 instance RedirectUrl master Text where
-    toTextUrl = return
+  toTextUrl = pure
 
 instance RedirectUrl master String where
-    toTextUrl = toTextUrl . T.pack
+  toTextUrl = toTextUrl . T.pack
 
 instance RedirectUrl master (Route master) where
-    toTextUrl url = do
-        r <- getUrlRender
-        return $ r url
+  toTextUrl url = do
+    r <- getUrlRender
+    pure $ r url
 
 instance (key ~ Text, val ~ Text) => RedirectUrl master (Route master, [(key, val)]) where
-    toTextUrl (url, params) = do
-        r <- getUrlRenderParams
-        return $ r url params
+  toTextUrl (url, params) = do
+    r <- getUrlRenderParams
+    pure $ r url params
 
 instance (key ~ Text, val ~ Text) => RedirectUrl master (Route master, Map.Map key val) where
-    toTextUrl (url, params) = toTextUrl (url, Map.toList params)
+  toTextUrl (url, params) = toTextUrl (url, Map.toList params)
 
 -- | Add a fragment identifier to a route to be used when
 -- redirecting.  For example:
@@ -1046,33 +1148,32 @@ instance (key ~ Text, val ~ Text) => RedirectUrl master (Route master, Map.Map k
 -- > redirect (NewsfeedR :#: storyId)
 --
 -- @since 1.2.9.
-data Fragment a b = a :#: b deriving Show
+data Fragment a b = a :#: b deriving (Show)
 
 instance (RedirectUrl master a, PathPiece b) => RedirectUrl master (Fragment a b) where
   toTextUrl (a :#: b) = (\ua -> T.concat [ua, "#", toPathPiece b]) <$> toTextUrl a
 
-
 -- | Lookup for session data.
-lookupSession :: MonadHandler m => Text -> m (Maybe Text)
+lookupSession :: (MonadHandler m) => Text -> m (Maybe Text)
 lookupSession = (fmap . fmap) (decodeUtf8With lenientDecode) . lookupSessionBS
 
 -- | Lookup for session data in binary format.
-lookupSessionBS :: MonadHandler m => Text -> m (Maybe S.ByteString)
+lookupSessionBS :: (MonadHandler m) => Text -> m (Maybe S.ByteString)
 lookupSessionBS n = do
-    m <- fmap ghsSession get
-    return $ Map.lookup n m
+  m <- fmap ghsSession get
+  pure $ Map.lookup n m
 
 -- | Get all session variables.
-getSession :: MonadHandler m => m SessionMap
+getSession :: (MonadHandler m) => m SessionMap
 getSession = fmap ghsSession get
 
 -- | Get a unique identifier.
-newIdent :: MonadHandler m => m Text
+newIdent :: (MonadHandler m) => m Text
 newIdent = do
-    x <- get
-    let i' = ghsIdent x + 1
-    put x { ghsIdent = i' }
-    return $ T.pack $ "hident" ++ show i'
+  x <- get
+  let i' = ghsIdent x + 1
+  put x{ghsIdent = i'}
+  pure $ T.pack $ "hident" ++ show i'
 
 -- | Redirect to a POST resource.
 --
@@ -1080,13 +1181,15 @@ newIdent = do
 -- POST form, and some Javascript to automatically submit the form. This can be
 -- useful when you need to post a plain link somewhere that needs to cause
 -- changes on the server.
-redirectToPost :: (MonadHandler m, RedirectUrl (HandlerSite m) url)
-               => url
-               -> m a
+redirectToPost ::
+  (MonadHandler m, RedirectUrl (HandlerSite m) url) =>
+  url ->
+  m a
 redirectToPost url = do
-    urlText <- toTextUrl url
-    req <- getRequest
-    withUrlRenderer [hamlet|
+  urlText <- toTextUrl url
+  req <- getRequest
+  withUrlRenderer
+    [hamlet|
 $newline never
 $doctype 5
 
@@ -1102,43 +1205,44 @@ $doctype 5
             <input type="submit" value="Continue">
         <script>
           window.onload = function() { document.getElementById('form').submit(); };
-|] >>= sendResponse
+|]
+    >>= sendResponse
 
 -- | Wraps the 'Content' generated by 'hamletToContent' in a 'RepHtml'.
-hamletToRepHtml :: MonadHandler m => HtmlUrl (Route (HandlerSite m)) -> m Html
+hamletToRepHtml :: (MonadHandler m) => HtmlUrl (Route (HandlerSite m)) -> m Html
 hamletToRepHtml = withUrlRenderer
 {-# DEPRECATED hamletToRepHtml "Use withUrlRenderer instead" #-}
 
 -- | Deprecated synonym for 'withUrlRenderer'.
 --
 -- @since 1.2.0
-giveUrlRenderer :: MonadHandler m
-                => ((Route (HandlerSite m) -> [(Text, Text)] -> Text) -> output)
-                -> m output
+giveUrlRenderer ::
+  (MonadHandler m) =>
+  ((Route (HandlerSite m) -> [(Text, Text)] -> Text) -> output) ->
+  m output
 giveUrlRenderer = withUrlRenderer
 {-# DEPRECATED giveUrlRenderer "Use withUrlRenderer instead" #-}
 
--- | Provide a URL rendering function to the given function and return the
+-- | Provide a URL rendering function to the given function and pure the
 -- result. Useful for processing Shakespearean templates.
 --
 -- @since 1.2.20
-withUrlRenderer :: MonadHandler m
-                => ((Route (HandlerSite m) -> [(Text, Text)] -> Text) -> output)
-                -> m output
-withUrlRenderer f = do
-    render <- getUrlRenderParams
-    return $ f render
+withUrlRenderer ::
+  (MonadHandler m) =>
+  ((Route (HandlerSite m) -> [(Text, Text)] -> Text) -> output) ->
+  m output
+withUrlRenderer f = f <$> getUrlRenderParams
 
 -- | Get the request\'s 'W.Request' value.
-waiRequest :: MonadHandler m => m W.Request
+waiRequest :: (MonadHandler m) => m W.Request
 waiRequest = reqWaiRequest <$> getRequest
 
-getMessageRender :: (MonadHandler m, RenderMessage (HandlerSite m) message)
-                 => m (message -> Text)
+getMessageRender ::
+  (MonadHandler m, RenderMessage (HandlerSite m) message) =>
+  m (message -> Text)
 getMessageRender = do
-    env <- askHandlerEnv
-    l <- languages
-    return $ renderMessage (rheSite env) l
+  env <- askHandlerEnv
+  renderMessage (rheSite env) <$> languages
 
 -- | Use a per-request cache to avoid performing the same action multiple times.
 -- Values are stored by their type, the result of typeOf from Typeable.
@@ -1150,25 +1254,27 @@ getMessageRender = do
 -- See the original announcement: <http://www.yesodweb.com/blog/2013/03/yesod-1-2-cleaner-internals>
 --
 -- @since 1.2.0
-cached :: (MonadHandler m, Typeable a)
-       => m a
-       -> m a
+cached ::
+  (MonadHandler m, Typeable a) =>
+  m a ->
+  m a
 cached action = do
-    cache <- ghsCache <$> get
-    eres <- Cache.cached cache action
-    case eres of
-      Right res -> return res
-      Left (newCache, res) -> do
-          gs <- get
-          let merged = newCache `HM.union` ghsCache gs
-          put $ gs { ghsCache = merged }
-          return res
+  cache <- ghsCache <$> get
+  eres <- Cache.cached cache action
+  case eres of
+    Right res -> pure res
+    Left (newCache, res) -> do
+      gs <- get
+      let merged = newCache `HM.union` ghsCache gs
+      put $ gs{ghsCache = merged}
+      pure res
 
 -- | Retrieves a value from the cache used by 'cached'.
 --
 -- @since 1.6.10
-cacheGet :: (MonadHandler m, Typeable a)
-         => m (Maybe a)
+cacheGet ::
+  (MonadHandler m, Typeable a) =>
+  m (Maybe a)
 cacheGet = do
   cache <- ghsCache <$> get
   pure $ Cache.cacheGet cache
@@ -1176,43 +1282,45 @@ cacheGet = do
 -- | Sets a value in the cache used by 'cached'.
 --
 -- @since 1.6.10
-cacheSet :: (MonadHandler m, Typeable a)
-         => a
-         -> m ()
+cacheSet ::
+  (MonadHandler m, Typeable a) =>
+  a ->
+  m ()
 cacheSet value = do
   gs <- get
   let cache = ghsCache gs
       newCache = Cache.cacheSet value cache
-  put $ gs { ghsCache = newCache }
+  put $ gs{ghsCache = newCache}
 
 -- | a per-request cache. just like 'cached'.
 -- 'cached' can only cache a single value per type.
 -- 'cachedBy' stores multiple values per type by usage of a ByteString key
 --
 -- 'cached' is ideal to cache an action that has only one value of a type, such as the session's current user
--- 'cachedBy' is required if the action has parameters and can return multiple values per type.
+-- 'cachedBy' is required if the action has parameters and can pure multiple values per type.
 -- You can turn those parameters into a ByteString cache key.
 -- For example, caching a lookup of a Link by a token where multiple token lookups might be performed.
 --
 -- @since 1.4.0
 cachedBy :: (MonadHandler m, Typeable a) => S.ByteString -> m a -> m a
 cachedBy k action = do
-    cache <- ghsCacheBy <$> get
-    eres <- Cache.cachedBy cache k action
-    case eres of
-      Right res -> return res
-      Left (newCache, res) -> do
-          gs <- get
-          let merged = newCache `HM.union` ghsCacheBy gs
-          put $ gs { ghsCacheBy = merged }
-          return res
+  cache <- ghsCacheBy <$> get
+  eres <- Cache.cachedBy cache k action
+  case eres of
+    Right res -> pure res
+    Left (newCache, res) -> do
+      gs <- get
+      let merged = newCache `HM.union` ghsCacheBy gs
+      put $ gs{ghsCacheBy = merged}
+      pure res
 
 -- | Retrieves a value from the cache used by 'cachedBy'.
 --
 -- @since 1.6.10
-cacheByGet :: (MonadHandler m, Typeable a)
-           => S.ByteString
-           -> m (Maybe a)
+cacheByGet ::
+  (MonadHandler m, Typeable a) =>
+  S.ByteString ->
+  m (Maybe a)
 cacheByGet key = do
   cache <- ghsCacheBy <$> get
   pure $ Cache.cacheByGet key cache
@@ -1220,15 +1328,16 @@ cacheByGet key = do
 -- | Sets a value in the cache used by 'cachedBy'.
 --
 -- @since 1.6.10
-cacheBySet :: (MonadHandler m, Typeable a)
-           => S.ByteString
-           -> a
-           -> m ()
+cacheBySet ::
+  (MonadHandler m, Typeable a) =>
+  S.ByteString ->
+  a ->
+  m ()
 cacheBySet key value = do
   gs <- get
   let cache = ghsCacheBy gs
       newCache = Cache.cacheBySet key value cache
-  put $ gs { ghsCacheBy = newCache }
+  put $ gs{ghsCacheBy = newCache}
 
 -- | Get the list of supported languages supplied by the user.
 --
@@ -1250,26 +1359,23 @@ cacheBySet key value = do
 --
 -- __NOTE__: Before version @1.6.19.0@, this function prioritized the session
 -- variable above all other sources.
---
-languages :: MonadHandler m => m [Text]
+languages :: (MonadHandler m) => m [Text]
 languages = reqLangs <$> getRequest
 
-lookup' :: Eq a => a -> [(a, b)] -> [b]
+lookup' :: (Eq a) => a -> [(a, b)] -> [b]
 lookup' a = map snd . filter (\x -> a == fst x)
 
 -- | Lookup a request header.
 --
 -- @since 1.2.2
-lookupHeader :: MonadHandler m => CI S8.ByteString -> m (Maybe S8.ByteString)
+lookupHeader :: (MonadHandler m) => CI S8.ByteString -> m (Maybe S8.ByteString)
 lookupHeader = fmap listToMaybe . lookupHeaders
 
 -- | Lookup a request header.
 --
 -- @since 1.2.2
-lookupHeaders :: MonadHandler m => CI S8.ByteString -> m [S8.ByteString]
-lookupHeaders key = do
-    req <- waiRequest
-    return $ lookup' key $ W.requestHeaders req
+lookupHeaders :: (MonadHandler m) => CI S8.ByteString -> m [S8.ByteString]
+lookupHeaders key = lookup' key . W.requestHeaders <$> waiRequest
 
 -- | Lookup basic authentication data from __Authorization__ header of
 -- request. Returns user name and password
@@ -1277,66 +1383,68 @@ lookupHeaders key = do
 -- @since 1.4.9
 lookupBasicAuth :: (MonadHandler m) => m (Maybe (Text, Text))
 lookupBasicAuth = fmap (>>= getBA) (lookupHeader "Authorization")
-  where
-    getBA bs = (decodeUtf8With lenientDecode *** decodeUtf8With lenientDecode)
-               <$> extractBasicAuth bs
+ where
+  getBA bs =
+    (decodeUtf8With lenientDecode *** decodeUtf8With lenientDecode)
+      <$> extractBasicAuth bs
 
 -- | Lookup bearer authentication datafrom __Authorization__ header of
 -- request. Returns bearer token value
 --
 -- @since 1.4.9
 lookupBearerAuth :: (MonadHandler m) => m (Maybe Text)
-lookupBearerAuth = fmap (>>= getBR)
-                   (lookupHeader "Authorization")
-  where
-    getBR bs = decodeUtf8With lenientDecode
-               <$> extractBearerAuth bs
-
-
--- | Lookup for GET parameters.
-lookupGetParams :: MonadHandler m => Text -> m [Text]
-lookupGetParams pn = do
-    rr <- getRequest
-    return $ lookup' pn $ reqGetParams rr
+lookupBearerAuth =
+  fmap
+    (>>= getBR)
+    (lookupHeader "Authorization")
+ where
+  getBR bs =
+    decodeUtf8With lenientDecode
+      <$> extractBearerAuth bs
 
 -- | Lookup for GET parameters.
-lookupGetParam :: MonadHandler m => Text -> m (Maybe Text)
+lookupGetParams :: (MonadHandler m) => Text -> m [Text]
+lookupGetParams pn = lookup' pn . reqGetParams <$> getRequest
+
+-- | Lookup for GET parameters.
+lookupGetParam :: (MonadHandler m) => Text -> m (Maybe Text)
 lookupGetParam = fmap listToMaybe . lookupGetParams
 
 -- | Lookup for POST parameters.
 lookupPostParams :: (MonadResource m, MonadHandler m) => Text -> m [Text]
 lookupPostParams pn = do
-    (pp, _) <- runRequestBody
-    return $ lookup' pn pp
+  (pp, _) <- runRequestBody
+  pure $ lookup' pn pp
 
-lookupPostParam :: (MonadResource m, MonadHandler m)
-                => Text
-                -> m (Maybe Text)
+lookupPostParam ::
+  (MonadResource m, MonadHandler m) =>
+  Text ->
+  m (Maybe Text)
 lookupPostParam = fmap listToMaybe . lookupPostParams
 
 -- | Lookup for POSTed files.
-lookupFile :: MonadHandler m
-           => Text
-           -> m (Maybe FileInfo)
+lookupFile ::
+  (MonadHandler m) =>
+  Text ->
+  m (Maybe FileInfo)
 lookupFile = fmap listToMaybe . lookupFiles
 
 -- | Lookup for POSTed files.
-lookupFiles :: MonadHandler m
-            => Text
-            -> m [FileInfo]
+lookupFiles ::
+  (MonadHandler m) =>
+  Text ->
+  m [FileInfo]
 lookupFiles pn = do
-    (_, files) <- runRequestBody
-    return $ lookup' pn files
+  (_, files) <- runRequestBody
+  pure $ lookup' pn files
 
 -- | Lookup for cookie data.
-lookupCookie :: MonadHandler m => Text -> m (Maybe Text)
+lookupCookie :: (MonadHandler m) => Text -> m (Maybe Text)
 lookupCookie = fmap listToMaybe . lookupCookies
 
 -- | Lookup for cookie data.
-lookupCookies :: MonadHandler m => Text -> m [Text]
-lookupCookies pn = do
-    rr <- getRequest
-    return $ lookup' pn $ reqCookies rr
+lookupCookies :: (MonadHandler m) => Text -> m [Text]
+lookupCookies pn = lookup' pn . reqCookies <$> getRequest
 
 -- $representations
 --
@@ -1359,52 +1467,65 @@ lookupCookies pn = do
 -- provided inside this do-block. Should be used together with 'provideRep'.
 --
 -- @since 1.2.0
-selectRep :: MonadHandler m
-          => Writer.Writer (Endo [ProvidedRep m]) ()
-          -> m TypedContent
+selectRep ::
+  (MonadHandler m) =>
+  Writer.Writer (Endo [ProvidedRep m]) () ->
+  m TypedContent
 selectRep w = do
-    -- the content types are already sorted by q values
-    -- which have been stripped
-    cts <- fmap reqAccept getRequest
+  -- the content types are already sorted by q values
+  -- which have been stripped
+  cts <- fmap reqAccept getRequest
 
-    case mapMaybe tryAccept cts of
-        [] ->
-            case reps of
-                [] -> sendResponseStatus H.status500 ("No reps provided to selectRep" :: Text)
-                rep:_ -> returnRep rep
-        rep:_ -> returnRep rep
-  where
-    returnRep (ProvidedRep ct mcontent) = fmap (TypedContent ct) mcontent
+  case mapMaybe tryAccept cts of
+    [] ->
+      case reps of
+        [] -> sendResponseStatus H.status500 ("No reps provided to selectRep" :: Text)
+        rep : _ -> returnRep rep
+    rep : _ -> returnRep rep
+ where
+  returnRep (ProvidedRep ct mcontent) = fmap (TypedContent ct) mcontent
 
-    reps = appEndo (Writer.execWriter w) []
+  reps = appEndo (Writer.execWriter w) []
 
-    repMap = Map.unions $ map (\v@(ProvidedRep k _) -> Map.fromList
-        [ (k, v)
-        , (noSpace k, v)
-        , (simpleContentType k, v)
-        ]) reps
+  repMap =
+    Map.unions $
+      map
+        ( \v@(ProvidedRep k _) ->
+            Map.fromList
+              [ (k, v)
+              , (noSpace k, v)
+              , (simpleContentType k, v)
+              ]
+        )
+        reps
 
-    -- match on the type for sub-type wildcards.
-    -- If the accept is text/ * it should match a provided text/html
-    mainTypeMap = Map.fromList $ reverse $ map
-      (\v@(ProvidedRep ct _) -> (fst $ contentTypeTypes ct, v)) reps
+  -- match on the type for sub-type wildcards.
+  -- If the accept is text/ * it should match a provided text/html
+  mainTypeMap =
+    Map.fromList $
+      reverse $
+        map
+          (\v@(ProvidedRep ct _) -> (fst $ contentTypeTypes ct, v))
+          reps
 
-    tryAccept ct =
-        if subType == "*"
-          then if mainType == "*"
-                 then listToMaybe reps
-                 else Map.lookup mainType mainTypeMap
-          else lookupAccept ct
-        where
-          (mainType, subType) = contentTypeTypes ct
+  tryAccept ct =
+    if subType == "*"
+      then
+        if mainType == "*"
+          then listToMaybe reps
+          else Map.lookup mainType mainTypeMap
+      else lookupAccept ct
+   where
+    (mainType, subType) = contentTypeTypes ct
 
-    lookupAccept ct = Map.lookup ct repMap <|>
-                      Map.lookup (noSpace ct) repMap <|>
-                      Map.lookup (simpleContentType ct) repMap
+  lookupAccept ct =
+    Map.lookup ct repMap
+      <|> Map.lookup (noSpace ct) repMap
+      <|> Map.lookup (simpleContentType ct) repMap
 
-    -- Mime types such as "text/html; charset=foo" get converted to
-    -- "text/html;charset=foo"
-    noSpace = S8.filter (/= ' ')
+  -- Mime types such as "text/html; charset=foo" get converted to
+  -- "text/html;charset=foo"
+  noSpace = S8.filter (/= ' ')
 
 -- | Internal representation of a single provided representation.
 --
@@ -1415,9 +1536,10 @@ data ProvidedRep m = ProvidedRep !ContentType !(m Content)
 -- client. Should be used together with 'selectRep'.
 --
 -- @since 1.2.0
-provideRep :: (Monad m, HasContentType a)
-           => m a
-           -> Writer.Writer (Endo [ProvidedRep m]) ()
+provideRep ::
+  (Monad m, HasContentType a) =>
+  m a ->
+  Writer.Writer (Endo [ProvidedRep m]) ()
 provideRep handler = provideRepType (getContentType handler) handler
 
 -- | Same as 'provideRep', but instead of determining the content type from the
@@ -1428,33 +1550,30 @@ provideRep handler = provideRepType (getContentType handler) handler
 -- > provideRepType "application/x-special-format" "This is the content"
 --
 -- @since 1.2.0
-provideRepType :: (Monad m, ToContent a)
-               => ContentType
-               -> m a
-               -> Writer.Writer (Endo [ProvidedRep m]) ()
+provideRepType ::
+  (Monad m, ToContent a) =>
+  ContentType ->
+  m a ->
+  Writer.Writer (Endo [ProvidedRep m]) ()
 provideRepType ct handler =
-    Writer.tell $ Endo (ProvidedRep ct (liftM toContent handler):)
+  Writer.tell $ Endo (ProvidedRep ct (fmap toContent handler) :)
 
 -- | Stream in the raw request body without any parsing.
 --
 -- @since 1.2.0
-rawRequestBody :: MonadHandler m => ConduitT i S.ByteString m ()
+rawRequestBody :: (MonadHandler m) => ConduitT i S.ByteString m ()
 rawRequestBody = do
-    req <- lift waiRequest
-    let loop = do
-#if MIN_VERSION_wai(3,2,2)
-            bs <- liftIO $ W.getRequestBodyChunk req
-#else
-            bs <- liftIO $ W.requestBody req
-#endif
-            unless (S.null bs) $ do
-                yield bs
-                loop
-    loop
+  req <- lift waiRequest
+  let loop = do
+        bs <- liftIO $ W.getRequestBodyChunk req
+        unless (S.null bs) $ do
+          yield bs
+          loop
+  loop
 
 -- | Stream the data from the file. Since Yesod 1.2, this has been generalized
 -- to work in any @MonadResource@.
-fileSource :: MonadResource m => FileInfo -> ConduitT () S.ByteString m ()
+fileSource :: (MonadResource m) => FileInfo -> ConduitT () S.ByteString m ()
 fileSource = transPipe liftResourceT . fileSourceRaw
 
 -- | Extract a strict `ByteString` body from a `FileInfo`.
@@ -1465,16 +1584,16 @@ fileSource = transPipe liftResourceT . fileSourceRaw
 -- >     fileByteString <- fileSourceByteString fileInfo
 --
 -- @since 1.6.5
-fileSourceByteString :: MonadResource m => FileInfo -> m S.ByteString
+fileSourceByteString :: (MonadResource m) => FileInfo -> m S.ByteString
 fileSourceByteString fileInfo = runConduit (L.toStrict <$> (fileSource fileInfo .| sinkLazy))
 
 -- | Provide a pure value for the response body.
 --
--- > respond ct = return . TypedContent ct . toContent
+-- > respond ct = pure . TypedContent ct . toContent
 --
 -- @since 1.2.0
 respond :: (Monad m, ToContent a) => ContentType -> a -> m TypedContent
-respond ct = return . TypedContent ct . toContent
+respond ct = pure . TypedContent ct . toContent
 
 -- | Use a @Source@ for the response body.
 --
@@ -1485,58 +1604,62 @@ respond ct = return . TypedContent ct . toContent
 -- headers, changing status codes, etc.
 --
 -- @since 1.2.0
-respondSource :: ContentType
-              -> ConduitT () (Flush Builder) (HandlerFor site) ()
-              -> HandlerFor site TypedContent
+respondSource ::
+  ContentType ->
+  ConduitT () (Flush Builder) (HandlerFor site) () ->
+  HandlerFor site TypedContent
 respondSource ctype src = HandlerFor $ \hd ->
-    -- Note that this implementation relies on the fact that the ResourceT
-    -- environment provided by the server is the same one used in HandlerFor.
-    -- This is a safe assumption assuming the HandlerFor is run correctly.
-    return $ TypedContent ctype $ ContentSource
-           $ transPipe (lift . flip unHandlerFor hd) src
+  -- Note that this implementation relies on the fact that the ResourceT
+  -- environment provided by the server is the same one used in HandlerFor.
+  -- This is a safe assumption assuming the HandlerFor is run correctly.
+  pure $
+    TypedContent ctype $
+      ContentSource $
+        transPipe (lift . flip unHandlerFor hd) src
 
 -- | In a streaming response, send a single chunk of data. This function works
 -- on most datatypes, such as @ByteString@ and @Html@.
 --
 -- @since 1.2.0
-sendChunk :: Monad m => ToFlushBuilder a => a -> ConduitT i (Flush Builder) m ()
+sendChunk ::
+  (Monad m) => (ToFlushBuilder a) => a -> ConduitT i (Flush Builder) m ()
 sendChunk = yield . toFlushBuilder
 
 -- | In a streaming response, send a flush command, causing all buffered data
 -- to be immediately sent to the client.
 --
 -- @since 1.2.0
-sendFlush :: Monad m => ConduitT i (Flush Builder) m ()
+sendFlush :: (Monad m) => ConduitT i (Flush Builder) m ()
 sendFlush = yield Flush
 
 -- | Type-specialized version of 'sendChunk' for strict @ByteString@s.
 --
 -- @since 1.2.0
-sendChunkBS :: Monad m => S.ByteString -> ConduitT i (Flush Builder) m ()
+sendChunkBS :: (Monad m) => S.ByteString -> ConduitT i (Flush Builder) m ()
 sendChunkBS = sendChunk
 
 -- | Type-specialized version of 'sendChunk' for lazy @ByteString@s.
 --
 -- @since 1.2.0
-sendChunkLBS :: Monad m => L.ByteString -> ConduitT i (Flush Builder) m ()
+sendChunkLBS :: (Monad m) => L.ByteString -> ConduitT i (Flush Builder) m ()
 sendChunkLBS = sendChunk
 
 -- | Type-specialized version of 'sendChunk' for strict @Text@s.
 --
 -- @since 1.2.0
-sendChunkText :: Monad m => T.Text -> ConduitT i (Flush Builder) m ()
+sendChunkText :: (Monad m) => T.Text -> ConduitT i (Flush Builder) m ()
 sendChunkText = sendChunk
 
 -- | Type-specialized version of 'sendChunk' for lazy @Text@s.
 --
 -- @since 1.2.0
-sendChunkLazyText :: Monad m => TL.Text -> ConduitT i (Flush Builder) m ()
+sendChunkLazyText :: (Monad m) => TL.Text -> ConduitT i (Flush Builder) m ()
 sendChunkLazyText = sendChunk
 
 -- | Type-specialized version of 'sendChunk' for @Html@s.
 --
 -- @since 1.2.0
-sendChunkHtml :: Monad m => Html -> ConduitT i (Flush Builder) m ()
+sendChunkHtml :: (Monad m) => Html -> ConduitT i (Flush Builder) m ()
 sendChunkHtml = sendChunk
 
 -- $ajaxCSRFOverview
@@ -1586,21 +1709,25 @@ defaultCsrfCookieName = "XSRF-TOKEN"
 -- The cookie's path is set to @/@, making it valid for your whole website.
 --
 -- @since 1.4.14
-setCsrfCookie :: MonadHandler m => m ()
-setCsrfCookie = setCsrfCookieWithCookie defaultSetCookie
-  { setCookieName = defaultCsrfCookieName
-  , setCookiePath = Just "/"
-  }
+setCsrfCookie :: (MonadHandler m) => m ()
+setCsrfCookie =
+  setCsrfCookieWithCookie
+    defaultSetCookie
+      { setCookieName = defaultCsrfCookieName
+      , setCookiePath = Just "/"
+      }
 
 -- | Takes a 'SetCookie' and overrides its value with a CSRF token, then sets the cookie.
 --
 -- Make sure to set the 'setCookiePath' to the root path of your application, otherwise you'll generate a new CSRF token for every path of your app. If your app is run from from e.g. www.example.com\/app1, use @app1@. The vast majority of sites will just use @/@.
 --
 -- @since 1.4.14
-setCsrfCookieWithCookie :: MonadHandler m => SetCookie -> m ()
-setCsrfCookieWithCookie cookie  = do
-    mCsrfToken <- reqToken <$> getRequest
-    Fold.forM_ mCsrfToken (\token -> setCookie $ cookie { setCookieValue = encodeUtf8 token })
+setCsrfCookieWithCookie :: (MonadHandler m) => SetCookie -> m ()
+setCsrfCookieWithCookie cookie = do
+  mCsrfToken <- reqToken <$> getRequest
+  Fold.forM_
+    mCsrfToken
+    (\token -> setCookie $ cookie{setCookieValue = encodeUtf8 token})
 
 -- | The default header name for the CSRF token ("X-XSRF-TOKEN").
 --
@@ -1612,24 +1739,29 @@ defaultCsrfHeaderName = "X-XSRF-TOKEN"
 -- this function throws a 'PermissionDenied' error.
 --
 -- @since 1.4.14
-checkCsrfHeaderNamed :: MonadHandler m => CI S8.ByteString -> m ()
+checkCsrfHeaderNamed :: (MonadHandler m) => CI S8.ByteString -> m ()
 checkCsrfHeaderNamed headerName = do
   (valid, mHeader) <- hasValidCsrfHeaderNamed' headerName
-  unless valid (permissionDenied $ csrfErrorMessage [CSRFHeader (decodeUtf8 $ original headerName) mHeader])
+  unless
+    valid
+    ( permissionDenied $
+        csrfErrorMessage [CSRFHeader (decodeUtf8 $ original headerName) mHeader]
+    )
 
 -- | Takes a header name to lookup a CSRF token, and returns whether the value matches the token stored in the session.
 --
 -- @since 1.4.14
-hasValidCsrfHeaderNamed :: MonadHandler m => CI S8.ByteString -> m Bool
+hasValidCsrfHeaderNamed :: (MonadHandler m) => CI S8.ByteString -> m Bool
 hasValidCsrfHeaderNamed headerName = fst <$> hasValidCsrfHeaderNamed' headerName
 
 -- | Like 'hasValidCsrfHeaderNamed', but also returns the header value to be used in error messages.
-hasValidCsrfHeaderNamed' :: MonadHandler m => CI S8.ByteString -> m (Bool, Maybe Text)
+hasValidCsrfHeaderNamed' ::
+  (MonadHandler m) => CI S8.ByteString -> m (Bool, Maybe Text)
 hasValidCsrfHeaderNamed' headerName = do
-  mCsrfToken  <- reqToken <$> getRequest
+  mCsrfToken <- reqToken <$> getRequest
   mXsrfHeader <- lookupHeader headerName
 
-  return $ (validCsrf mCsrfToken mXsrfHeader, decodeUtf8 <$> mXsrfHeader)
+  pure (validCsrf mCsrfToken mXsrfHeader, decodeUtf8 <$> mXsrfHeader)
 
 -- CSRF Parameter checking
 
@@ -1643,7 +1775,7 @@ defaultCsrfParamName = "_token"
 -- this function throws a 'PermissionDenied' error.
 --
 -- @since 1.4.14
-checkCsrfParamNamed :: MonadHandler m => Text -> m ()
+checkCsrfParamNamed :: (MonadHandler m) => Text -> m ()
 checkCsrfParamNamed paramName = do
   (valid, mParam) <- hasValidCsrfParamNamed' paramName
   unless valid (permissionDenied $ csrfErrorMessage [CSRFParam paramName mParam])
@@ -1651,67 +1783,83 @@ checkCsrfParamNamed paramName = do
 -- | Takes a POST parameter name to lookup a CSRF token, and returns whether the value matches the token stored in the session.
 --
 -- @since 1.4.14
-hasValidCsrfParamNamed :: MonadHandler m => Text -> m Bool
+hasValidCsrfParamNamed :: (MonadHandler m) => Text -> m Bool
 hasValidCsrfParamNamed paramName = fst <$> hasValidCsrfParamNamed' paramName
 
 -- | Like 'hasValidCsrfParamNamed', but also returns the param value to be used in error messages.
-hasValidCsrfParamNamed' :: MonadHandler m => Text -> m (Bool, Maybe Text)
+hasValidCsrfParamNamed' :: (MonadHandler m) => Text -> m (Bool, Maybe Text)
 hasValidCsrfParamNamed' paramName = do
-  mCsrfToken  <- reqToken <$> getRequest
+  mCsrfToken <- reqToken <$> getRequest
   mCsrfParam <- lookupPostParam paramName
 
-  return $ (validCsrf mCsrfToken (encodeUtf8 <$> mCsrfParam), mCsrfParam)
+  pure (validCsrf mCsrfToken (encodeUtf8 <$> mCsrfParam), mCsrfParam)
 
 -- | Checks that a valid CSRF token is present in either the request headers or POST parameters.
 -- If the value doesn't match the token stored in the session, this function throws a 'PermissionDenied' error.
 --
 -- @since 1.4.14
-checkCsrfHeaderOrParam :: (MonadHandler m, MonadLogger m)
-                       => CI S8.ByteString -- ^ The header name to lookup the CSRF token
-                       -> Text -- ^ The POST parameter name to lookup the CSRF token
-                       -> m ()
+checkCsrfHeaderOrParam ::
+  (MonadHandler m, MonadLogger m) =>
+  -- | The header name to lookup the CSRF token
+  CI S8.ByteString ->
+  -- | The POST parameter name to lookup the CSRF token
+  Text ->
+  m ()
 checkCsrfHeaderOrParam headerName paramName = do
   (validHeader, mHeader) <- hasValidCsrfHeaderNamed' headerName
   (validParam, mParam) <- hasValidCsrfParamNamed' paramName
   unless (validHeader || validParam) $ do
-    let errorMessage = csrfErrorMessage $ [CSRFHeader (decodeUtf8 $ original headerName) mHeader, CSRFParam paramName mParam]
+    let errorMessage =
+          csrfErrorMessage $
+            [ CSRFHeader (decodeUtf8 $ original headerName) mHeader
+            , CSRFParam paramName mParam
+            ]
     $logWarnS "yesod-core" errorMessage
     permissionDenied errorMessage
 
 validCsrf :: Maybe Text -> Maybe S.ByteString -> Bool
 -- It's important to use constant-time comparison (constEq) in order to avoid timing attacks.
 validCsrf (Just token) (Just param) = encodeUtf8 token `constEq` param
-validCsrf Nothing            _param = True
-validCsrf (Just _token)     Nothing = False
+validCsrf Nothing _param = True
+validCsrf (Just _token) Nothing = False
 
-data CSRFExpectation = CSRFHeader Text (Maybe Text) -- Key/Value
-                     | CSRFParam Text (Maybe Text) -- Key/Value
+data CSRFExpectation
+  = CSRFHeader Text (Maybe Text) -- Key/Value
+  | CSRFParam Text (Maybe Text) -- Key/Value
 
-csrfErrorMessage :: [CSRFExpectation]
-                  -> Text -- ^ Error message
-csrfErrorMessage expectedLocations = T.intercalate "\n"
-  [ "A valid CSRF token wasn't present. Because the request could have been forged, it's been rejected altogether."
-  , "If you're a developer of this site, these tips will help you debug the issue:"
-  , "- Read the Yesod.Core.Handler docs of the yesod-core package for details on CSRF protection."
-  , "- Check that your HTTP client is persisting cookies between requests, like a browser does."
-  , "- By default, the CSRF token is sent to the client in a cookie named " `mappend` (decodeUtf8 defaultCsrfCookieName) `mappend` "."
-  , "- The server is looking for the token in the following locations:\n" `mappend` T.intercalate "\n" (map csrfLocation expectedLocations)
-  ]
+csrfErrorMessage ::
+  [CSRFExpectation] ->
+  -- | Error message
+  Text
+csrfErrorMessage expectedLocations =
+  T.intercalate
+    "\n"
+    [ "A valid CSRF token wasn't present. Because the request could have been forged, it's been rejected altogether."
+    , "If you're a developer of this site, these tips will help you debug the issue:"
+    , "- Read the Yesod.Core.Handler docs of the yesod-core package for details on CSRF protection."
+    , "- Check that your HTTP client is persisting cookies between requests, like a browser does."
+    , "- By default, the CSRF token is sent to the client in a cookie named "
+        <> decodeUtf8 defaultCsrfCookieName
+        <> "."
+    , "- The server is looking for the token in the following locations:\n"
+        <> T.intercalate "\n" (map csrfLocation expectedLocations)
+    ]
+ where
+  csrfLocation expected = case expected of
+    CSRFHeader k v -> T.intercalate " " ["  - An HTTP header named", k, formatValue v]
+    CSRFParam k v -> T.intercalate " " ["  - A POST parameter named", k, formatValue v]
 
-  where csrfLocation expected = case expected of
-          CSRFHeader k v -> T.intercalate " " ["  - An HTTP header named", k, (formatValue v)]
-          CSRFParam k v -> T.intercalate " " ["  - A POST parameter named", k, (formatValue v)]
+  formatValue :: Maybe Text -> Text
+  formatValue maybeText = case maybeText of
+    Nothing -> "(which is not currently set)"
+    Just t -> T.concat ["(which has the current, incorrect value: '", t, "')"]
 
-        formatValue :: Maybe Text -> Text
-        formatValue maybeText = case maybeText of
-          Nothing -> "(which is not currently set)"
-          Just t -> T.concat ["(which has the current, incorrect value: '", t, "')"]
+getSubYesod :: (MonadHandler m) => m (SubHandlerSite m)
+getSubYesod = liftSubHandler $ SubHandlerFor $ pure . rheChild . handlerEnv
 
-getSubYesod :: MonadHandler m => m (SubHandlerSite m)
-getSubYesod = liftSubHandler $ SubHandlerFor $ return . rheChild . handlerEnv
+getRouteToParent ::
+  (MonadHandler m) => m (Route (SubHandlerSite m) -> Route (HandlerSite m))
+getRouteToParent = liftSubHandler $ SubHandlerFor $ pure . rheRouteToMaster . handlerEnv
 
-getRouteToParent :: MonadHandler m => m (Route (SubHandlerSite m) -> Route (HandlerSite m))
-getRouteToParent = liftSubHandler $ SubHandlerFor $ return . rheRouteToMaster . handlerEnv
-
-getSubCurrentRoute :: MonadHandler m => m (Maybe (Route (SubHandlerSite m)))
-getSubCurrentRoute = liftSubHandler $ SubHandlerFor $ return . rheRoute . handlerEnv
+getSubCurrentRoute :: (MonadHandler m) => m (Maybe (Route (SubHandlerSite m)))
+getSubCurrentRoute = liftSubHandler $ SubHandlerFor $ pure . rheRoute . handlerEnv

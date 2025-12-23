@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+-- {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -7,8 +7,10 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
+
 ---------------------------------------------------------
 --
+
 -- | Serve static files from a Yesod app.
 --
 -- This is great for developing your application, but also for a
@@ -29,84 +31,83 @@
 -- with a dot, such as @\".ssh\"@) and the directory "tmp" on the
 -- root of the directory with static files.
 module Yesod.Static
-    ( -- * Subsite
-      Static (..)
-    , Route (..)
-    , StaticRoute
-      -- * Smart constructor
-    , static
-    , staticDevel
-      -- * Combining CSS/JS
-      -- $combining
-    , combineStylesheets'
-    , combineScripts'
-      -- ** Settings
-    , CombineSettings
-    , csStaticDir
-    , csCssPostProcess
-    , csJsPostProcess
-    , csCssPreProcess
-    , csJsPreProcess
-    , csCombinedFolder
-      -- * Template Haskell helpers
-    , staticFiles
-    , staticFilesList
-    , staticFilesMap
-    , staticFilesMergeMap
-    , publicFiles
-      -- * Hashing
-    , base64md5
-      -- * Embed
-    , embed
-#ifdef TEST_EXPORT
-    , getFileListPieces
-#endif
-    ) where
+  ( -- * Subsite
+    Static (..)
+  , Route (..)
+  , StaticRoute
 
-import System.Directory
-import qualified System.FilePath as FP
+    -- * Smart constructor
+  , static
+  , staticDevel
+
+    -- * Combining CSS/JS
+    -- $combining
+  , combineStylesheets'
+  , combineScripts'
+
+    -- ** Settings
+  , CombineSettings
+  , csStaticDir
+  , csCssPostProcess
+  , csJsPostProcess
+  , csCssPreProcess
+  , csJsPreProcess
+  , csCombinedFolder
+
+    -- * Template Haskell helpers
+  , staticFiles
+  , staticFilesList
+  , staticFilesMap
+  , staticFilesMergeMap
+  , publicFiles
+
+    -- * Hashing
+  , base64md5
+
+    -- * Embed
+  , embed
+  ) where
+
+import Conduit
 import Control.Monad
-import Data.FileEmbed (embedDir)
-
-import Yesod.Core
-import Yesod.Core.Types
-
-import Data.List (intercalate, sort)
-import Language.Haskell.TH
-import Language.Haskell.TH.Syntax as TH
-
-import Crypto.Hash.Conduit (hashFile, sinkHash)
-import Crypto.Hash (MD5, Digest)
 import Control.Monad.Trans.State
-
+import Crypto.Hash (Digest, MD5)
+import Crypto.Hash.Conduit (hashFile, sinkHash)
 import qualified Data.ByteArray as ByteArray
+import qualified Data.ByteString as S
 import qualified Data.ByteString.Base64
 import qualified Data.ByteString.Char8 as S8
 import qualified Data.ByteString.Lazy as L
+import Data.Char (isAsciiLower, isAsciiUpper, isDigit, isLower)
+import Data.Default
+import Data.FileEmbed (embedDir)
+import Data.IORef (newIORef, readIORef, writeIORef)
+import Data.List (intercalate, sort)
+import qualified Data.Map as M
 import Data.Text (Text, pack)
 import qualified Data.Text as T
-import qualified Data.Map as M
-import Data.IORef (readIORef, newIORef, writeIORef)
-import Data.Char (isLower)
-import Data.List (foldl')
-import qualified Data.ByteString as S
-import System.PosixCompat.Files (getFileStatus, modificationTime)
-import System.Posix.Types (EpochTime)
-import Conduit
-import System.FilePath ((</>), (<.>), takeDirectory)
-import qualified System.FilePath as F
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TLE
-import Data.Default
---import Text.Lucius (luciusRTMinified)
+import Language.Haskell.TH
+import Language.Haskell.TH.Syntax as TH
+import System.Directory
+import System.FilePath (takeDirectory, (<.>), (</>))
+import qualified System.FilePath as F
+import qualified System.FilePath as FP
+import System.Posix.Types (EpochTime)
+import System.PosixCompat.Files (getFileStatus, modificationTime)
+import Yesod.Core
+import Yesod.Core.Types
+
+-- import Text.Lucius (luciusRTMinified)
 
 import Network.Wai (pathInfo)
 import Network.Wai.Application.Static
-    ( StaticSettings (..)
-    , staticApp
-    , webAppSettingsWithLookup
-    , embeddedSettings
-    )
+  ( StaticSettings (..)
+  , embeddedSettings
+  , staticApp
+  , webAppSettingsWithLookup
+  )
 import WaiAppStatic.Storage.Filesystem (ETagLookup)
 
 -- | Type used for the subsite with static contents.
@@ -122,16 +123,16 @@ type StaticRoute = Route Static
 -- added.
 static :: FilePath -> IO Static
 static dir = do
-    hashLookup <- cachedETagLookup dir
-    return $ Static $ webAppSettingsWithLookup dir hashLookup
+  hashLookup <- cachedETagLookup dir
+  pure $ Static $ webAppSettingsWithLookup dir hashLookup
 
 -- | Same as 'static', but does not assumes that the files do not
 -- change and checks their modification time whenever a request
 -- is made.
 staticDevel :: FilePath -> IO Static
 staticDevel dir = do
-    hashLookup <- cachedETagLookupDevel dir
-    return $ Static $ webAppSettingsWithLookup dir hashLookup
+  hashLookup <- cachedETagLookupDevel dir
+  pure $ Static $ webAppSettingsWithLookup dir hashLookup
 
 -- | Produce a 'Static' based on embedding all of the static files' contents in the
 -- executable at compile time.
@@ -143,77 +144,78 @@ staticDevel dir = do
 -- assets will be 404'ed.  This is because by default yesod will generate compile those
 -- assets to @static/tmp@ which for 'static' is fine since they are served out of the
 -- directory itself.  With embedded static, that will not work.
--- You can easily change @addStaticContent@ to @\_ _ _ -> return Nothing@ as a workaround.
+-- You can easily change @addStaticContent@ to @\_ _ _ -> pure Nothing@ as a workaround.
 -- This will cause yesod to embed those assets into the generated HTML file itself.
 embed :: FilePath -> Q Exp
 embed fp = [|Static (embeddedSettings $(embedDir fp))|]
 
 instance RenderRoute Static where
-    -- | A route on the static subsite (see also 'staticFiles').
-    --
-    -- You may use this constructor directly to manually link to a
-    -- static file.  The first argument is the sub-path to the file
-    -- being served whereas the second argument is the key-value
-    -- pairs in the query string.  For example,
-    --
-    -- > StaticRoute $ StaticR [\"thumb001.jpg\"] [(\"foo\", \"5\"), (\"bar\", \"choc\")]
-    --
-    -- would generate a url such as
-    -- @http://www.example.com/static/thumb001.jpg?foo=5&bar=choc@
-    -- The StaticRoute constructor can be used when the URL cannot be
-    -- statically generated at compile-time (e.g. when generating
-    -- image galleries).
-    data Route Static = StaticRoute [Text] [(Text, Text)]
-        deriving (Eq, Show, Read)
-    renderRoute (StaticRoute x y) = (x, y)
+  -- \| A route on the static subsite (see also 'staticFiles').
+  --
+  -- You may use this constructor directly to manually link to a
+  -- static file.  The first argument is the sub-path to the file
+  -- being served whereas the second argument is the key-value
+  -- pairs in the query string.  For example,
+  --
+  -- > StaticRoute $ StaticR [\"thumb001.jpg\"] [(\"foo\", \"5\"), (\"bar\", \"choc\")]
+  --
+  -- would generate a url such as
+  -- @http://www.example.com/static/thumb001.jpg?foo=5&bar=choc@
+  -- The StaticRoute constructor can be used when the URL cannot be
+  -- statically generated at compile-time (e.g. when generating
+  -- image galleries).
+  data Route Static = StaticRoute [Text] [(Text, Text)]
+    deriving (Eq, Show, Read)
+  renderRoute (StaticRoute x y) = (x, y)
 instance ParseRoute Static where
-    parseRoute (x, y) = Just $ StaticRoute x y
+  parseRoute (x, y) = Just $ StaticRoute x y
 
 instance YesodSubDispatch Static master where
-    yesodSubDispatch YesodSubRunnerEnv {..} req =
-        ysreParentRunner handlert ysreParentEnv (fmap ysreToParentRoute route) req
-      where
-        route = Just $ StaticRoute (pathInfo req) []
+  yesodSubDispatch YesodSubRunnerEnv{..} req =
+    ysreParentRunner handlert ysreParentEnv (fmap ysreToParentRoute route) req
+   where
+    route = Just $ StaticRoute (pathInfo req) []
 
-        Static set = ysreGetSub $ yreSite $ ysreParentEnv
-        handlert = sendWaiApplication $ staticApp set
+    Static set = ysreGetSub $ yreSite ysreParentEnv
+    handlert = sendWaiApplication $ staticApp set
 
 notHidden :: FilePath -> Bool
 notHidden "tmp" = False
 notHidden s =
-    case s of
-        '.':_ -> False
-        _ -> True
+  case s of
+    '.' : _ -> False
+    _ -> True
 
 getFileListPieces :: FilePath -> IO [[String]]
 getFileListPieces = flip evalStateT M.empty . flip go id
-  where
-    go :: String
-       -> ([String] -> [String])
-       -> StateT (M.Map String String) IO [[String]]
-    go fp front = do
-        allContents <- liftIO $ (sort . filter notHidden) `fmap` getDirectoryContents fp
-        let fullPath :: String -> String
-            fullPath f = fp ++ '/' : f
-        files <- liftIO $ filterM (doesFileExist . fullPath) allContents
-        let files' = map (front . return) files
-        files'' <- mapM dedupe files'
-        dirs <- liftIO $ filterM (doesDirectoryExist . fullPath) allContents
-        dirs' <- mapM (\f -> go (fullPath f) (front . (:) f)) dirs
-        return $ concat $ files'' : dirs'
+ where
+  go ::
+    String ->
+    ([String] -> [String]) ->
+    StateT (M.Map String String) IO [[String]]
+  go fp front = do
+    allContents <- liftIO $ (sort . filter notHidden) `fmap` getDirectoryContents fp
+    let fullPath :: String -> String
+        fullPath f = fp ++ '/' : f
+    files <- liftIO $ filterM (doesFileExist . fullPath) allContents
+    let files' = map (front . pure) files
+    files'' <- mapM dedupe files'
+    dirs <- liftIO $ filterM (doesDirectoryExist . fullPath) allContents
+    dirs' <- mapM (\f -> go (fullPath f) (front . (:) f)) dirs
+    pure $ concat $ files'' : dirs'
 
-    -- Reuse data buffers for identical strings
-    dedupe :: [String] -> StateT (M.Map String String) IO [String]
-    dedupe = mapM dedupe'
+  -- Reuse data buffers for identical strings
+  dedupe :: [String] -> StateT (M.Map String String) IO [String]
+  dedupe = mapM dedupe'
 
-    dedupe' :: String -> StateT (M.Map String String) IO String
-    dedupe' s = do
-        m <- get
-        case M.lookup s m of
-            Just s' -> return s'
-            Nothing -> do
-                put $ M.insert s s m
-                return s
+  dedupe' :: String -> StateT (M.Map String String) IO String
+  dedupe' s = do
+    m <- get
+    case M.lookup s m of
+      Just s' -> pure s'
+      Nothing -> do
+        put $ M.insert s s m
+        pure s
 
 -- | Template Haskell function that automatically creates routes
 -- for all of your static files.
@@ -233,7 +235,7 @@ getFileListPieces = flip evalStateT M.empty . flip go id
 -- replaced by underscores (@\_@) to create valid Haskell
 -- identifiers.
 staticFiles :: FilePath -> Q [Dec]
-staticFiles dir = mkStaticFiles dir
+staticFiles = mkStaticFiles
 
 -- | Same as 'staticFiles', but takes an explicit list of files
 -- to create identifiers for. The files path given are relative
@@ -247,13 +249,13 @@ staticFiles dir = mkStaticFiles dir
 -- files, but only need to refer to a few of them from Haskell.
 staticFilesList :: FilePath -> [FilePath] -> Q [Dec]
 staticFilesList dir fs =
-    mkStaticFilesList dir (map split fs) True
-  where
-    split :: FilePath -> [String]
-    split [] = []
-    split x =
-        let (a, b) = break (== '/') x
-         in a : split (drop 1 b)
+  mkStaticFilesList dir (map split fs) True
+ where
+  split :: FilePath -> [String]
+  split [] = []
+  split x =
+    let (a, b) = break (== '/') x
+     in a : split (drop 1 b)
 
 -- | Same as 'staticFiles', but doesn't append an ETag to the
 -- query string.
@@ -274,14 +276,14 @@ publicFiles dir = mkStaticFiles' dir False
 -- @since 1.5.3
 staticFilesMap :: FilePath -> M.Map FilePath FilePath -> Q [Dec]
 staticFilesMap fp m = mkStaticFilesList' fp (map splitBoth mapList) True
-  where
-    splitBoth (k, v) = (split k, split v)
-    mapList = M.toList m
-    split :: FilePath -> [String]
-    split [] = []
-    split x =
-        let (a, b) = break (== '/') x
-         in a : split (drop 1 b)
+ where
+  splitBoth (k, v) = (split k, split v)
+  mapList = M.toList m
+  split :: FilePath -> [String]
+  split [] = []
+  split x =
+    let (a, b) = break (== '/') x
+     in a : split (drop 1 b)
 
 -- | Similar to 'staticFilesMergeMap', but also generates identifiers
 -- for all files in the specified directory that don't have a
@@ -294,142 +296,158 @@ staticFilesMergeMap fp m = do
   let filesList = map FP.joinPath fs
       mergedMapList = M.toList $ foldl' (checkedInsert invertedMap) m filesList
   mkStaticFilesList' fp (map splitBoth mergedMapList) True
-  where
-    splitBoth (k, v) = (split k, split v)
-    swap (x, y) = (y, x)
-    mapList = M.toList m
-    invertedMap = M.fromList $ map swap mapList
-    split :: FilePath -> [String]
-    split [] = []
-    split x =
-        let (a, b) = break (== '/') x
-         in a : split (drop 1 b)
-    -- We want to keep mappings for all files that are pre-fingerprinted,
-    -- so this function checks against all of the existing fingerprinted files and
-    -- only inserts a new mapping if it's not a fingerprinted file.
-    checkedInsert
-      :: M.Map FilePath FilePath -- inverted dictionary
-      -> M.Map FilePath FilePath -- accumulating state
-      -> FilePath
-      -> M.Map FilePath FilePath
-    checkedInsert iDict st p = if M.member p iDict
+ where
+  splitBoth (k, v) = (split k, split v)
+  swap (x, y) = (y, x)
+  mapList = M.toList m
+  invertedMap = M.fromList $ map swap mapList
+  split :: FilePath -> [String]
+  split [] = []
+  split x =
+    let (a, b) = break (== '/') x
+     in a : split (drop 1 b)
+  -- We want to keep mappings for all files that are pre-fingerprinted,
+  -- so this function checks against all of the existing fingerprinted files and
+  -- only inserts a new mapping if it's not a fingerprinted file.
+  checkedInsert ::
+    M.Map FilePath FilePath -> -- inverted dictionary
+    M.Map FilePath FilePath -> -- accumulating state
+    FilePath ->
+    M.Map FilePath FilePath
+  checkedInsert iDict st p =
+    if M.member p iDict
       then st
       else M.insert p p st
 
 mkHashMap :: FilePath -> IO (M.Map FilePath S8.ByteString)
 mkHashMap dir = do
-    fs <- getFileListPieces dir
-    hashAlist fs >>= return . M.fromList
-  where
-    hashAlist :: [[String]] -> IO [(FilePath, S8.ByteString)]
-    hashAlist fs = mapM hashPair fs
-      where
-        hashPair :: [String] -> IO (FilePath, S8.ByteString)
-        hashPair pieces = do let file = pathFromRawPieces dir pieces
-                             h <- base64md5File file
-                             return (file, S8.pack h)
+  fs <- getFileListPieces dir
+  M.fromList <$> hashAlist fs
+ where
+  hashAlist :: [[String]] -> IO [(FilePath, S8.ByteString)]
+  hashAlist = mapM hashPair
+   where
+    hashPair :: [String] -> IO (FilePath, S8.ByteString)
+    hashPair pieces = do
+      let file = pathFromRawPieces dir pieces
+      h <- base64md5File file
+      pure (file, S8.pack h)
 
 pathFromRawPieces :: FilePath -> [String] -> FilePath
 pathFromRawPieces =
-    foldl' append
-  where
-    append a b = a ++ '/' : b
+  foldl' append
+ where
+  append a b = a ++ '/' : b
 
 cachedETagLookupDevel :: FilePath -> IO ETagLookup
 cachedETagLookupDevel dir = do
-    etags <- mkHashMap dir
-    mtimeVar <- newIORef (M.empty :: M.Map FilePath EpochTime)
-    return $ \f ->
-      case M.lookup f etags of
-        Nothing -> return Nothing
-        Just checksum -> do
-          fs <- getFileStatus f
-          let newt = modificationTime fs
-          mtimes <- readIORef mtimeVar
-          oldt <- case M.lookup f mtimes of
-            Nothing -> writeIORef mtimeVar (M.insert f newt mtimes) >> return newt
-            Just oldt -> return oldt
-          return $ if newt /= oldt then Nothing else Just checksum
-
+  etags <- mkHashMap dir
+  mtimeVar <- newIORef (M.empty :: M.Map FilePath EpochTime)
+  pure $ \f ->
+    case M.lookup f etags of
+      Nothing -> pure Nothing
+      Just checksum -> do
+        fs <- getFileStatus f
+        let newt = modificationTime fs
+        mtimes <- readIORef mtimeVar
+        oldt <- case M.lookup f mtimes of
+          Nothing -> writeIORef mtimeVar (M.insert f newt mtimes) >> pure newt
+          Just oldt -> pure oldt
+        pure $ if newt /= oldt then Nothing else Just checksum
 
 cachedETagLookup :: FilePath -> IO ETagLookup
 cachedETagLookup dir = do
-    etags <- mkHashMap dir
-    return $ (\f -> return $ M.lookup f etags)
+  etags <- mkHashMap dir
+  pure (\f -> pure $ M.lookup f etags)
 
 mkStaticFiles :: FilePath -> Q [Dec]
 mkStaticFiles fp = mkStaticFiles' fp True
 
-mkStaticFiles' :: FilePath -- ^ static directory
-               -> Bool     -- ^ append checksum query parameter
-               -> Q [Dec]
+mkStaticFiles' ::
+  -- | static directory
+  FilePath ->
+  -- | append checksum query parameter
+  Bool ->
+  Q [Dec]
 mkStaticFiles' fp makeHash = do
-    fs <- qRunIO $ getFileListPieces fp
-    mkStaticFilesList fp fs makeHash
+  fs <- qRunIO $ getFileListPieces fp
+  mkStaticFilesList fp fs makeHash
 
-mkStaticFilesList
-    :: FilePath -- ^ static directory
-    -> [[String]] -- ^ list of files to create identifiers for
-    -> Bool     -- ^ append checksum query parameter
-    -> Q [Dec]
-mkStaticFilesList fp fs makeHash = mkStaticFilesList' fp (zip fs fs) makeHash
+mkStaticFilesList ::
+  -- | static directory
+  FilePath ->
+  -- | list of files to create identifiers for
+  [[String]] ->
+  -- | append checksum query parameter
+  Bool ->
+  Q [Dec]
+mkStaticFilesList fp fs = mkStaticFilesList' fp (zip fs fs)
 
-mkStaticFilesList'
-    :: FilePath -- ^ static directory
-    -> [([String], [String])] -- ^ list of files to create identifiers for, where
-                              -- the first argument of the tuple is the identifier
-                              -- alias and the second is the actual file name
-    -> Bool     -- ^ append checksum query parameter
-    -> Q [Dec]
+mkStaticFilesList' ::
+  -- | static directory
+  FilePath ->
+  -- | list of files to create identifiers for, where
+  -- the first argument of the tuple is the identifier
+  -- alias and the second is the actual file name
+  [([String], [String])] ->
+  -- | append checksum query parameter
+  Bool ->
+  Q [Dec]
 mkStaticFilesList' fp fs makeHash = do
-    concat `fmap` mapM mkRoute fs
-  where
-    replace' c
-        | 'A' <= c && c <= 'Z' = c
-        | 'a' <= c && c <= 'z' = c
-        | '0' <= c && c <= '9' = c
-        | otherwise = '_'
-    mkRoute (alias, f) = do
-        let name' = intercalate "_" $ map (map replace') alias
-            routeName = mkName $
-                case name' of
-                    [] -> error "null-named file"
-                    n : _
-                        | isLower n -> name'
-                        | otherwise -> '_' : name'
-        f' <- [|map pack $(TH.lift f)|]
-        qs <- if makeHash
-                    then do hash <- qRunIO $ base64md5File $ pathFromRawPieces fp f
-                            [|[(pack "etag", pack $(TH.lift hash))]|]
-                    else return $ ListE []
-        return
-            [ SigD routeName $ ConT ''StaticRoute
-            , FunD routeName
-                [ Clause [] (NormalB $ (ConE 'StaticRoute) `AppE` f' `AppE` qs) []
-                ]
-            ]
+  concat `fmap` mapM mkRoute fs
+ where
+  replace' c
+    | isAsciiUpper c = c
+    | isAsciiLower c = c
+    | isDigit c = c
+    | otherwise = '_'
+  mkRoute (alias, f) = do
+    let name' = intercalate "_" $ map (map replace') alias
+        routeName = mkName $
+          case name' of
+            [] -> error "null-named file"
+            n : _
+              | isLower n -> name'
+              | otherwise -> '_' : name'
+    f' <- [|map pack $(TH.lift f)|]
+    qs <-
+      if makeHash
+        then do
+          hash <- qRunIO $ base64md5File $ pathFromRawPieces fp f
+          [|[(pack "etag", pack $(TH.lift hash))]|]
+        else pure $ ListE []
+    pure
+      [ SigD routeName $ ConT ''StaticRoute
+      , FunD
+          routeName
+          [ Clause [] (NormalB $ ConE 'StaticRoute `AppE` f' `AppE` qs) []
+          ]
+      ]
 
 base64md5File :: FilePath -> IO String
 base64md5File = fmap (base64 . encode) . hashFile
-    where encode d = ByteArray.convert (d :: Digest MD5)
+ where
+  encode d = ByteArray.convert (d :: Digest MD5)
 
 base64md5 :: L.ByteString -> String
 base64md5 lbs =
-            base64 $ encode
-          $ runConduitPure
-          $ Conduit.sourceLazy lbs .| sinkHash
-  where
-    encode d = ByteArray.convert (d :: Digest MD5)
+  base64 $
+    encode $
+      runConduitPure $
+        Conduit.sourceLazy lbs .| sinkHash
+ where
+  encode d = ByteArray.convert (d :: Digest MD5)
 
 base64 :: S.ByteString -> String
-base64 = map tr
-       . take 8
-       . S8.unpack
-       . Data.ByteString.Base64.encode
-  where
-    tr '+' = '-'
-    tr '/' = '_'
-    tr c   = c
+base64 =
+  map tr
+    . take 8
+    . S8.unpack
+    . Data.ByteString.Base64.encode
+ where
+  tr '+' = '-'
+  tr '/' = '_'
+  tr c = c
 
 -- $combining
 --
@@ -447,42 +465,46 @@ base64 = map tr
 
 data CombineType = JS | CSS
 
-combineStatics' :: CombineType
-                -> CombineSettings
-                -> [Route Static] -- ^ files to combine
-                -> Q Exp
-combineStatics' combineType CombineSettings {..} routes = do
-    texts <- qRunIO $ runConduitRes
-                    $ yieldMany fps
-                   .| awaitForever readUTFFile
-                   .| sinkLazy
-    ltext <- qRunIO $ preProcess texts
-    bs    <- qRunIO $ postProcess fps $ TLE.encodeUtf8 ltext
-    let hash' = base64md5 bs
-        suffix = csCombinedFolder </> hash' <.> extension
-        fp = csStaticDir </> suffix
-    qRunIO $ do
-        createDirectoryIfMissing True $ takeDirectory fp
-        L.writeFile fp bs
-    let pieces = map T.unpack $ T.splitOn "/" $ T.pack suffix
-    [|StaticRoute (map pack pieces) []|]
-  where
-    fps :: [FilePath]
-    fps = map toFP routes
-    toFP (StaticRoute pieces _) = csStaticDir </> F.joinPath (map T.unpack pieces)
-    readUTFFile fp = sourceFile fp .| decodeUtf8C
-    postProcess =
-        case combineType of
-            JS -> csJsPostProcess
-            CSS -> csCssPostProcess
-    preProcess =
-        case combineType of
-            JS -> csJsPreProcess
-            CSS -> csCssPreProcess
-    extension =
-        case combineType of
-            JS -> "js"
-            CSS -> "css"
+combineStatics' ::
+  CombineType ->
+  CombineSettings ->
+  -- | files to combine
+  [Route Static] ->
+  Q Exp
+combineStatics' combineType CombineSettings{..} routes = do
+  texts <-
+    qRunIO $
+      runConduitRes $
+        yieldMany fps
+          .| awaitForever readUTFFile
+          .| sinkLazy
+  ltext <- qRunIO $ preProcess texts
+  bs <- qRunIO $ postProcess fps $ TLE.encodeUtf8 ltext
+  let hash' = base64md5 bs
+      suffix = csCombinedFolder </> hash' <.> extension
+      fp = csStaticDir </> suffix
+  qRunIO $ do
+    createDirectoryIfMissing True $ takeDirectory fp
+    L.writeFile fp bs
+  let pieces = map T.unpack $ T.splitOn "/" $ T.pack suffix
+  [|StaticRoute (map pack pieces) []|]
+ where
+  fps :: [FilePath]
+  fps = map toFP routes
+  toFP (StaticRoute pieces _) = csStaticDir </> F.joinPath (map T.unpack pieces)
+  readUTFFile fp = sourceFile fp .| decodeUtf8C
+  postProcess =
+    case combineType of
+      JS -> csJsPostProcess
+      CSS -> csCssPostProcess
+  preProcess =
+    case combineType of
+      JS -> csJsPreProcess
+      CSS -> csCssPreProcess
+  extension =
+    case combineType of
+      JS -> "js"
+      CSS -> "css"
 
 -- | Data type for holding all settings for combining files.
 --
@@ -492,82 +514,83 @@ combineStatics' combineType CombineSettings {..} routes = do
 --
 -- Since 1.2.0
 data CombineSettings = CombineSettings
-    { csStaticDir :: FilePath
-    -- ^ File path containing static files.
-    --
-    -- Default: static
-    --
-    -- Since 1.2.0
-    , csCssPostProcess :: [FilePath] -> L.ByteString -> IO L.ByteString
-    -- ^ Post processing to be performed on CSS files.
-    --
-    -- Default: Pass-through.
-    --
-    -- Since 1.2.0
-    , csJsPostProcess :: [FilePath] -> L.ByteString -> IO L.ByteString
-    -- ^ Post processing to be performed on Javascript files.
-    --
-    -- Default: Pass-through.
-    --
-    -- Since 1.2.0
-    , csCssPreProcess :: TL.Text -> IO TL.Text
-    -- ^ Pre-processing to be performed on CSS files.
-    --
-    -- Default: convert all occurences of /static/ to ../
-    --
-    -- Since 1.2.0
-    , csJsPreProcess :: TL.Text -> IO TL.Text
-    -- ^ Pre-processing to be performed on Javascript files.
-    --
-    -- Default: Pass-through.
-    --
-    -- Since 1.2.0
-    , csCombinedFolder :: FilePath
-    -- ^ Subfolder to put combined files into.
-    --
-    -- Default: combined
-    --
-    -- Since 1.2.0
-    }
+  { csStaticDir :: FilePath
+  -- ^ File path containing static files.
+  --
+  -- Default: static
+  --
+  -- Since 1.2.0
+  , csCssPostProcess :: [FilePath] -> L.ByteString -> IO L.ByteString
+  -- ^ Post processing to be performed on CSS files.
+  --
+  -- Default: Pass-through.
+  --
+  -- Since 1.2.0
+  , csJsPostProcess :: [FilePath] -> L.ByteString -> IO L.ByteString
+  -- ^ Post processing to be performed on Javascript files.
+  --
+  -- Default: Pass-through.
+  --
+  -- Since 1.2.0
+  , csCssPreProcess :: TL.Text -> IO TL.Text
+  -- ^ Pre-processing to be performed on CSS files.
+  --
+  -- Default: convert all occurences of /static/ to ../
+  --
+  -- Since 1.2.0
+  , csJsPreProcess :: TL.Text -> IO TL.Text
+  -- ^ Pre-processing to be performed on Javascript files.
+  --
+  -- Default: Pass-through.
+  --
+  -- Since 1.2.0
+  , csCombinedFolder :: FilePath
+  -- ^ Subfolder to put combined files into.
+  --
+  -- Default: combined
+  --
+  -- Since 1.2.0
+  }
 
 instance Default CombineSettings where
-    def = CombineSettings
-        { csStaticDir = "static"
-        {- Disabled due to: https://github.com/yesodweb/yesod/issues/623
+  def =
+    CombineSettings
+      { csStaticDir = "static"
+      , {- Disabled due to: https://github.com/yesodweb/yesod/issues/623
         , csCssPostProcess = \fps ->
-              either (error . (errorIntro fps)) (return . TLE.encodeUtf8)
+              either (error . (errorIntro fps)) (pure . TLE.encodeUtf8)
             . flip luciusRTMinified []
             . TLE.decodeUtf8
         -}
-        , csCssPostProcess = const return
-        , csJsPostProcess = const return
-           -- FIXME The following borders on a hack. With combining of files,
-           -- the final location of the CSS is no longer fixed, so relative
-           -- references will break. Instead, we switched to using /static/
-           -- absolute references. However, when served from a separate domain
-           -- name, this will break too. The solution is that, during
-           -- development, we keep /static/, and in the combining phase, we
-           -- replace /static with a relative reference to the parent folder.
-        , csCssPreProcess =
-              return
+        csCssPostProcess = const pure
+      , csJsPostProcess = const pure
+      , -- FIXME The following borders on a hack. With combining of files,
+        -- the final location of the CSS is no longer fixed, so relative
+        -- references will break. Instead, we switched to using /static/
+        -- absolute references. However, when served from a separate domain
+        -- name, this will break too. The solution is that, during
+        -- development, we keep /static/, and in the combining phase, we
+        -- replace /static with a relative reference to the parent folder.
+        csCssPreProcess =
+          pure
             . TL.replace "'/static/" "'../"
             . TL.replace "\"/static/" "\"../"
-        , csJsPreProcess = return
-        , csCombinedFolder = "combined"
-        }
+      , csJsPreProcess = pure
+      , csCombinedFolder = "combined"
+      }
 
 liftRoutes :: [Route Static] -> Q Exp
 liftRoutes =
-    fmap ListE . mapM go
-  where
-    go :: Route Static -> Q Exp
-    go (StaticRoute x y) = [|StaticRoute $(liftTexts x) $(liftPairs y)|]
+  fmap ListE . mapM go
+ where
+  go :: Route Static -> Q Exp
+  go (StaticRoute x y) = [|StaticRoute $(liftTexts x) $(liftPairs y)|]
 
-    liftTexts = fmap ListE . mapM liftT
-    liftT t = [|pack $(TH.lift $ T.unpack t)|]
+  liftTexts = fmap ListE . mapM liftT
+  liftT t = [|pack $(TH.lift $ T.unpack t)|]
 
-    liftPairs = fmap ListE . mapM liftPair
-    liftPair (x, y) = [|($(liftT x), $(liftT y))|]
+  liftPairs = fmap ListE . mapM liftPair
+  liftPair (x, y) = [|($(liftT x), $(liftT y))|]
 
 -- | Combine multiple CSS files together. Common usage would be:
 --
@@ -577,15 +600,20 @@ liftRoutes =
 -- development or production mode.
 --
 -- Since 1.2.0
-combineStylesheets' :: Bool -- ^ development? if so, perform no combining
-                    -> CombineSettings
-                    -> Name -- ^ Static route constructor name, e.g. \'StaticR
-                    -> [Route Static] -- ^ files to combine
-                    -> Q Exp
+combineStylesheets' ::
+  -- | development? if so, perform no combining
+  Bool ->
+  CombineSettings ->
+  -- | Static route constructor name, e.g. \'StaticR
+  Name ->
+  -- | files to combine
+  [Route Static] ->
+  Q Exp
 combineStylesheets' development cs con routes
-    | development = [| mapM_ (addStylesheet . $(return $ ConE con)) $(liftRoutes routes) |]
-    | otherwise = [| addStylesheet $ $(return $ ConE con) $(combineStatics' CSS cs routes) |]
-
+  | development =
+      [|mapM_ (addStylesheet . $(pure $ ConE con)) $(liftRoutes routes)|]
+  | otherwise =
+      [|addStylesheet $ $(pure $ ConE con) $(combineStatics' CSS cs routes)|]
 
 -- | Combine multiple JS files together. Common usage would be:
 --
@@ -595,11 +623,17 @@ combineStylesheets' development cs con routes
 -- development or production mode.
 --
 -- Since 1.2.0
-combineScripts' :: Bool -- ^ development? if so, perform no combining
-                -> CombineSettings
-                -> Name -- ^ Static route constructor name, e.g. \'StaticR
-                -> [Route Static] -- ^ files to combine
-                -> Q Exp
+combineScripts' ::
+  -- | development? if so, perform no combining
+  Bool ->
+  CombineSettings ->
+  -- | Static route constructor name, e.g. \'StaticR
+  Name ->
+  -- | files to combine
+  [Route Static] ->
+  Q Exp
 combineScripts' development cs con routes
-    | development = [| mapM_ (addScript . $(return $ ConE con)) $(liftRoutes routes) |]
-    | otherwise = [| addScript $ $(return $ ConE con) $(combineStatics' JS cs routes) |]
+  | development =
+      [|mapM_ (addScript . $(pure $ ConE con)) $(liftRoutes routes)|]
+  | otherwise =
+      [|addScript $ $(pure $ ConE con) $(combineStatics' JS cs routes)|]

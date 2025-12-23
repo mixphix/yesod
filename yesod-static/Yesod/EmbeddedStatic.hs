@@ -38,37 +38,36 @@
 -- alternative domain to this server.  In addition, you might consider using a reverse
 -- proxy like varnish or squid to cache the static content, but the embedded content in
 -- this subsite is cached and served directly from memory so is already quite fast.
-module Yesod.EmbeddedStatic (
-  -- * Subsite
+module Yesod.EmbeddedStatic
+  ( -- * Subsite
     EmbeddedStatic
   , embeddedResourceR
   , mkEmbeddedStatic
   , embedStaticContent
 
-  -- * Generators
+    -- * Generators
   , module Yesod.EmbeddedStatic.Generators
-) where
+  ) where
 
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.HashMap.Strict as M
 import Data.IORef
-import Data.Maybe (catMaybes)
+import Data.Maybe (mapMaybe)
+import qualified Data.Text as T
 import Language.Haskell.TH
 import Network.HTTP.Types.Status (status404)
-import Network.Wai (responseLBS, pathInfo)
+import Network.Wai (pathInfo, responseLBS)
 import Network.Wai.Application.Static (staticApp)
 import System.IO.Unsafe (unsafePerformIO)
-import Yesod.Core (YesodSubDispatch(..))
-import Yesod.Core.Types
-          ( YesodSubRunnerEnv(..)
-          , YesodRunnerEnv(..)
-          )
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.Text as T
-import qualified Data.HashMap.Strict as M
 import qualified WaiAppStatic.Storage.Embedded as Static
-
-import Yesod.EmbeddedStatic.Types
-import Yesod.EmbeddedStatic.Internal
+import Yesod.Core (YesodSubDispatch (..))
+import Yesod.Core.Types
+  ( YesodRunnerEnv (..)
+  , YesodSubRunnerEnv (..)
+  )
 import Yesod.EmbeddedStatic.Generators
+import Yesod.EmbeddedStatic.Internal
+import Yesod.EmbeddedStatic.Types
 
 -- Haddock doesn't support associated types in instances yet so we can't
 -- export EmbeddedResourceR directly.
@@ -78,24 +77,25 @@ embeddedResourceR :: [T.Text] -> [(T.Text, T.Text)] -> Route EmbeddedStatic
 embeddedResourceR = EmbeddedResourceR
 
 instance YesodSubDispatch EmbeddedStatic master where
-    yesodSubDispatch YesodSubRunnerEnv {..} req = resp
-        where
-            master = yreSite ysreParentEnv
-            site = ysreGetSub master
-            resp = case pathInfo req of
-                            ("res":_) -> stApp site req
-                            ("widget":_) -> staticApp (widgetSettings site) req
-                            _ -> ($ responseLBS status404 [] "Not Found")
+  yesodSubDispatch YesodSubRunnerEnv{..} req = resp
+   where
+    master = yreSite ysreParentEnv
+    site = ysreGetSub master
+    resp = case pathInfo req of
+      ("res" : _) -> stApp site req
+      ("widget" : _) -> staticApp (widgetSettings site) req
+      _ -> ($ responseLBS status404 [] "Not Found")
 
 -- | Create the haskell variable for the link to the entry
 mkRoute :: ComputedEntry -> Q [Dec]
-mkRoute (ComputedEntry { cHaskellName = Nothing }) = return []
-mkRoute (c@ComputedEntry { cHaskellName = Just name }) = do
-    routeType <- [t| Route EmbeddedStatic |]
-    link <- [| $(cLink c) |]
-    return [ SigD name routeType
-           , ValD (VarP name) (NormalB link) []
-           ]
+mkRoute ComputedEntry{cHaskellName = Nothing} = return []
+mkRoute c@ComputedEntry{cHaskellName = Just name} = do
+  routeType <- [t|Route EmbeddedStatic|]
+  link <- [|$(cLink c)|]
+  return
+    [ SigD name routeType
+    , ValD (VarP name) (NormalB link) []
+    ]
 
 -- | Creates an 'EmbeddedStatic' by running, at compile time, a list of generators.
 -- Each generator produces a list of entries to embed into the executable.
@@ -126,30 +126,36 @@ mkRoute (c@ComputedEntry { cHaskellName = Just name }) = do
 -- > js_jquery_js :: Route EmbeddedStatic
 -- > css_bootstrap_css :: Route EmbeddedStatic
 -- > img_logo_png :: Route EmbeddedStatic
-mkEmbeddedStatic :: Bool -- ^ development?
-                 -> String -- ^ variable name for the created 'EmbeddedStatic'
-                 -> [Generator] -- ^ the generators (see "Yesod.EmbeddedStatic.Generators")
-                 -> Q [Dec]
+mkEmbeddedStatic ::
+  -- | development?
+  Bool ->
+  -- | variable name for the created 'EmbeddedStatic'
+  String ->
+  -- | the generators (see "Yesod.EmbeddedStatic.Generators")
+  [Generator] ->
+  Q [Dec]
 mkEmbeddedStatic dev esName gen = do
-    entries <- concat <$> sequence gen
-    computed <- runIO $ mapM (if dev then devEmbed else prodEmbed) entries
+  entries <- concat <$> sequence gen
+  computed <- runIO $ mapM (if dev then devEmbed else prodEmbed) entries
 
-    let settings = Static.mkSettings $ return $ map cStEntry computed
-        devExtra = listE $ catMaybes $ map ebDevelExtraFiles entries
-        ioRef  = [| unsafePerformIO $ newIORef M.empty |]
+  let settings = Static.mkSettings $ return $ map cStEntry computed
+      devExtra = listE $ mapMaybe ebDevelExtraFiles entries
+      ioRef = [|unsafePerformIO $ newIORef M.empty|]
 
-    -- build the embedded static
-    esType <- [t| EmbeddedStatic |]
-    esCreate <- if dev
-                  then [| EmbeddedStatic (develApp $settings $devExtra) $ioRef |]
-                  else [| EmbeddedStatic (staticApp $! $settings) $ioRef |]
-    let es = [ SigD (mkName esName) esType
-             , ValD (VarP $ mkName esName) (NormalB esCreate) []
-             ]
+  -- build the embedded static
+  esType <- [t|EmbeddedStatic|]
+  esCreate <-
+    if dev
+      then [|EmbeddedStatic (develApp $settings $devExtra) $ioRef|]
+      else [|EmbeddedStatic (staticApp $! $settings) $ioRef|]
+  let es =
+        [ SigD (mkName esName) esType
+        , ValD (VarP $ mkName esName) (NormalB esCreate) []
+        ]
 
-    routes <- mapM mkRoute computed
+  routes <- mapM mkRoute computed
 
-    return $ es ++ concat routes
+  return $ es ++ concat routes
 
 -- | Use this for 'addStaticContent' to have the widget static content be served by
 --   the embedded static subsite.  For example,
@@ -171,8 +177,12 @@ mkEmbeddedStatic dev esName gen = do
 -- >     addStaticContent = embedStaticContent getStatic StaticR mini
 -- >         where mini = if development then Right else minifym
 -- >     ...
-embedStaticContent :: (site -> EmbeddedStatic)   -- ^ How to retrieve the embedded static subsite from your site
-                   -> (Route EmbeddedStatic -> Route site) -- ^ how to convert an embedded static route
-                   -> (BL.ByteString -> Either a BL.ByteString) -- ^ javascript minifier
-                   -> AddStaticContent site
+embedStaticContent ::
+  -- | How to retrieve the embedded static subsite from your site
+  (site -> EmbeddedStatic) ->
+  -- | how to convert an embedded static route
+  (Route EmbeddedStatic -> Route site) ->
+  -- | javascript minifier
+  (BL.ByteString -> Either a BL.ByteString) ->
+  AddStaticContent site
 embedStaticContent = staticContentHelper

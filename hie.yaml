@@ -1,0 +1,88 @@
+cradle:
+  cabal:
+    - path: "yesod/./"
+      component: "lib:yesod"
+
+    - path: "yesod-auth/./"
+      component: "lib:yesod-auth"
+
+    - path: "yesod-auth-oauth/./"
+      component: "lib:yesod-auth-oauth"
+
+    - path: "yesod-bin/./main.hs"
+      component: "yesod-bin:exe:yesod"
+
+    - path: "yesod-bin/./Devel.hs"
+      component: "yesod-bin:exe:yesod"
+
+    - path: "yesod-bin/./Keter.hs"
+      component: "yesod-bin:exe:yesod"
+
+    - path: "yesod-bin/./AddHandler.hs"
+      component: "yesod-bin:exe:yesod"
+
+    - path: "yesod-bin/./Paths_yesod_bin.hs"
+      component: "yesod-bin:exe:yesod"
+
+    - path: "yesod-bin/./Options.hs"
+      component: "yesod-bin:exe:yesod"
+
+    - path: "yesod-bin/./HsFile.hs"
+      component: "yesod-bin:exe:yesod"
+
+    - path: "yesod-core/src"
+      component: "lib:yesod-core"
+
+    - path: "yesod-core/test"
+      component: "yesod-core:test:test-routes"
+
+    - path: "yesod-core/src"
+      component: "yesod-core:test:test-routes"
+
+    - path: "yesod-core/test"
+      component: "yesod-core:test:tests"
+
+    - path: "yesod-core/bench/widget.hs"
+      component: "yesod-core:bench:widgets"
+
+    - path: "yesod-eventsource/./"
+      component: "lib:yesod-eventsource"
+
+    - path: "yesod-form/./"
+      component: "lib:yesod-form"
+
+    - path: "yesod-form/test"
+      component: "yesod-form:test:test"
+
+    - path: "yesod-form-multi/./"
+      component: "lib:yesod-form-multi"
+
+    - path: "yesod-newsfeed/./"
+      component: "lib:yesod-newsfeed"
+
+    - path: "yesod-persistent/./"
+      component: "lib:yesod-persistent"
+
+    - path: "yesod-persistent/test"
+      component: "yesod-persistent:test:test"
+
+    - path: "yesod-sitemap/./"
+      component: "lib:yesod-sitemap"
+
+    - path: "yesod-static/./"
+      component: "lib:yesod-static"
+
+    - path: "yesod-static/."
+      component: "yesod-static:test:tests"
+
+    - path: "yesod-static/test"
+      component: "yesod-static:test:tests"
+
+    - path: "yesod-test/./"
+      component: "lib:yesod-test"
+
+    - path: "yesod-test/test"
+      component: "yesod-test:test:test"
+
+    - path: "yesod-websockets/./"
+      component: "lib:yesod-websockets"

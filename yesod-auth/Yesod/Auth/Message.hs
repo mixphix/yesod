@@ -1,76 +1,76 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Yesod.Auth.Message
-    ( AuthMessage (..)
-    , defaultMessage
+  ( AuthMessage (..)
+  , defaultMessage
 
-      -- * All languages
-    , englishMessage
-    , portugueseMessage
-    , swedishMessage
-    , germanMessage
-    , frenchMessage
-    , norwegianBokmålMessage
-    , japaneseMessage
-    , finnishMessage
-    , chineseMessage
-    , croatianMessage
-    , spanishMessage
-    , czechMessage
-    , russianMessage
-    , dutchMessage
-    , danishMessage
-    , koreanMessage
-    , romanianMessage
-    ) where
+    -- * All languages
+  , englishMessage
+  , portugueseMessage
+  , swedishMessage
+  , germanMessage
+  , frenchMessage
+  , norwegianBokmålMessage
+  , japaneseMessage
+  , finnishMessage
+  , chineseMessage
+  , croatianMessage
+  , spanishMessage
+  , czechMessage
+  , russianMessage
+  , dutchMessage
+  , danishMessage
+  , koreanMessage
+  , romanianMessage
+  ) where
 
 import Data.Text (Text)
 
-data AuthMessage =
-      NoOpenID
-    | LoginOpenID
-    | LoginGoogle
-    | LoginYahoo
-    | Email
-    | UserName
-    | IdentifierNotFound Text
-    | Password
-    | Register
-    | RegisterLong
-    | EnterEmail
-    | ConfirmationEmailSentTitle
-    | ConfirmationEmailSent Text
-    | AddressVerified
-    | EmailVerifiedChangePass
-    | EmailVerified
-    | InvalidKeyTitle
-    | InvalidKey
-    | InvalidEmailPass
-    | BadSetPass
-    | SetPassTitle
-    | SetPass
-    | NewPass
-    | ConfirmPass
-    | PassMismatch
-    | PassUpdated
-    | Facebook
-    | LoginViaEmail
-    | InvalidLogin
-    | NowLoggedIn
-    | LoginTitle
-    | PleaseProvideUsername
-    | PleaseProvidePassword
-    | NoIdentifierProvided
-    | InvalidEmailAddress
-    | PasswordResetTitle
-    | ProvideIdentifier
-    | SendPasswordResetEmail
-    | PasswordResetPrompt
-    | CurrentPassword
-    | InvalidUsernamePass
-    | Logout
-    | LogoutTitle
-    | AuthError
+data AuthMessage
+  = NoOpenID
+  | LoginOpenID
+  | LoginGoogle
+  | LoginYahoo
+  | Email
+  | UserName
+  | IdentifierNotFound Text
+  | Password
+  | Register
+  | RegisterLong
+  | EnterEmail
+  | ConfirmationEmailSentTitle
+  | ConfirmationEmailSent Text
+  | AddressVerified
+  | EmailVerifiedChangePass
+  | EmailVerified
+  | InvalidKeyTitle
+  | InvalidKey
+  | InvalidEmailPass
+  | BadSetPass
+  | SetPassTitle
+  | SetPass
+  | NewPass
+  | ConfirmPass
+  | PassMismatch
+  | PassUpdated
+  | Facebook
+  | LoginViaEmail
+  | InvalidLogin
+  | NowLoggedIn
+  | LoginTitle
+  | PleaseProvideUsername
+  | PleaseProvidePassword
+  | NoIdentifierProvided
+  | InvalidEmailAddress
+  | PasswordResetTitle
+  | ProvideIdentifier
+  | SendPasswordResetEmail
+  | PasswordResetPrompt
+  | CurrentPassword
+  | InvalidUsernamePass
+  | Logout
+  | LogoutTitle
+  | AuthError
 {-# DEPRECATED Logout "Please, use LogoutTitle instead." #-}
 {-# DEPRECATED AddressVerified "Please, use EmailVerifiedChangePass instead." #-}
 
@@ -89,10 +89,11 @@ englishMessage Password = "Password"
 englishMessage CurrentPassword = "Current Password"
 englishMessage Register = "Register"
 englishMessage RegisterLong = "Register a new account"
-englishMessage EnterEmail = "Enter your e-mail address below, and a confirmation e-mail will be sent to you."
+englishMessage EnterEmail =
+  "Enter your e-mail address below, and a confirmation e-mail will be sent to you."
 englishMessage ConfirmationEmailSentTitle = "Confirmation e-mail sent"
 englishMessage (ConfirmationEmailSent email) =
-    "A confirmation e-mail has been sent to " `mappend` email `mappend` "."
+  "A confirmation e-mail has been sent to " <> email <> "."
 englishMessage AddressVerified = "Email address verified, please set a new password"
 englishMessage EmailVerifiedChangePass = "Email address verified, please set a new password"
 englishMessage EmailVerified = "Email address verified"
@@ -118,9 +119,10 @@ englishMessage InvalidEmailAddress = "Invalid email address provided"
 englishMessage PasswordResetTitle = "Password Reset"
 englishMessage ProvideIdentifier = "Email or Username"
 englishMessage SendPasswordResetEmail = "Send password reset email"
-englishMessage PasswordResetPrompt = "Enter your e-mail address or username below, and a password reset e-mail will be sent to you."
+englishMessage PasswordResetPrompt =
+  "Enter your e-mail address or username below, and a password reset e-mail will be sent to you."
 englishMessage InvalidUsernamePass = "Invalid username/password combination"
-englishMessage (IdentifierNotFound ident) = "Login not found: " `mappend` ident
+englishMessage (IdentifierNotFound ident) = "Login not found: " <> ident
 englishMessage Logout = "Log Out"
 englishMessage LogoutTitle = "Log Out"
 englishMessage AuthError = "Authentication Error" -- FIXME by Google Translate
@@ -136,12 +138,13 @@ portugueseMessage Password = "Senha"
 portugueseMessage CurrentPassword = "Palavra de passe"
 portugueseMessage Register = "Registrar"
 portugueseMessage RegisterLong = "Registrar uma nova conta"
-portugueseMessage EnterEmail = "Por favor digite seu endereço de e-mail abaixo e um e-mail de confirmação será enviado para você."
+portugueseMessage EnterEmail =
+  "Por favor digite seu endereço de e-mail abaixo e um e-mail de confirmação será enviado para você."
 portugueseMessage ConfirmationEmailSentTitle = "E-mail de confirmação enviado"
 portugueseMessage (ConfirmationEmailSent email) =
-    "Um e-mail de confirmação foi enviado para " `mappend`
-    email `mappend`
-    "."
+  "Um e-mail de confirmação foi enviado para "
+    <> email
+    <> "."
 portugueseMessage AddressVerified = "Endereço verificado, por favor entre com uma nova senha"
 portugueseMessage EmailVerifiedChangePass = "Endereço verificado, por favor entre com uma nova senha"
 portugueseMessage EmailVerified = "Endereço verificado"
@@ -167,7 +170,8 @@ portugueseMessage InvalidEmailAddress = "Endereço de e-mail inválido informado
 portugueseMessage PasswordResetTitle = "Resetar senha"
 portugueseMessage ProvideIdentifier = "E-mail ou nome de usuário"
 portugueseMessage SendPasswordResetEmail = "Enviar e-mail para resetar senha"
-portugueseMessage PasswordResetPrompt = "Insira seu endereço de e-mail ou nome de usuário abaixo.  Um e-mail para resetar sua senha será enviado para você."
+portugueseMessage PasswordResetPrompt =
+  "Insira seu endereço de e-mail ou nome de usuário abaixo.  Um e-mail para resetar sua senha será enviado para você."
 portugueseMessage InvalidUsernamePass = "Nome de usuário ou senha inválidos"
 -- TODO
 portugueseMessage i@(IdentifierNotFound _) = englishMessage i
@@ -186,12 +190,13 @@ spanishMessage Password = "Contraseña"
 spanishMessage CurrentPassword = "Contraseña actual"
 spanishMessage Register = "Registrarse"
 spanishMessage RegisterLong = "Registrar una nueva cuenta"
-spanishMessage EnterEmail = "Coloque su dirección de correo electrónico, y un correo de confirmación le será enviado a su cuenta."
+spanishMessage EnterEmail =
+  "Coloque su dirección de correo electrónico, y un correo de confirmación le será enviado a su cuenta."
 spanishMessage ConfirmationEmailSentTitle = "La confirmación de correo ha sido enviada"
 spanishMessage (ConfirmationEmailSent email) =
-    "Una confirmación de correo electrónico ha sido enviada a " `mappend`
-    email `mappend`
-    "."
+  "Una confirmación de correo electrónico ha sido enviada a "
+    <> email
+    <> "."
 spanishMessage AddressVerified = "Dirección verificada, por favor introduzca una contraseña"
 spanishMessage EmailVerifiedChangePass = "Dirección verificada, por favor introduzca una contraseña"
 spanishMessage EmailVerified = "Dirección verificada"
@@ -217,7 +222,8 @@ spanishMessage InvalidEmailAddress = "La cuenta de correo es inválida"
 spanishMessage PasswordResetTitle = "Actualización de contraseña"
 spanishMessage ProvideIdentifier = "Cuenta de correo o nombre de usuario"
 spanishMessage SendPasswordResetEmail = "Enviar correo de actualización de contraseña"
-spanishMessage PasswordResetPrompt = "Escriba su cuenta de correo o nombre de usuario, y una confirmación de actualización de contraseña será enviada a su cuenta de correo."
+spanishMessage PasswordResetPrompt =
+  "Escriba su cuenta de correo o nombre de usuario, y una confirmación de actualización de contraseña será enviada a su cuenta de correo."
 spanishMessage InvalidUsernamePass = "Combinación de nombre de usuario/contraseña invalida"
 -- TODO
 spanishMessage i@(IdentifierNotFound _) = englishMessage i
@@ -231,17 +237,18 @@ swedishMessage LoginOpenID = "Logga in via OpenID"
 swedishMessage LoginGoogle = "Logga in via Google"
 swedishMessage LoginYahoo = "Logga in via Yahoo"
 swedishMessage Email = "Epost"
-swedishMessage UserName = "Användarnamn"  -- FIXME by Google Translate "user name"
+swedishMessage UserName = "Användarnamn" -- FIXME by Google Translate "user name"
 swedishMessage Password = "Lösenord"
 swedishMessage CurrentPassword = "Current password"
 swedishMessage Register = "Registrera"
 swedishMessage RegisterLong = "Registrera ett nytt konto"
-swedishMessage EnterEmail = "Skriv in din epost nedan så kommer ett konfirmationsmail skickas till adressen."
+swedishMessage EnterEmail =
+  "Skriv in din epost nedan så kommer ett konfirmationsmail skickas till adressen."
 swedishMessage ConfirmationEmailSentTitle = "Konfirmationsmail skickat"
 swedishMessage (ConfirmationEmailSent email) =
-    "Ett konfirmationsmeddelande har skickats till" `mappend`
-    email `mappend`
-    "."
+  "Ett konfirmationsmeddelande har skickats till"
+    <> email
+    <> "."
 swedishMessage AddressVerified = "Adress verifierad, vänligen välj nytt lösenord"
 swedishMessage EmailVerifiedChangePass = "Adress verifierad, vänligen välj nytt lösenord"
 swedishMessage EmailVerified = "Adress verifierad"
@@ -267,8 +274,9 @@ swedishMessage InvalidEmailAddress = "Ogiltig emailadress angiven"
 swedishMessage PasswordResetTitle = "Återställning av lösenord"
 swedishMessage ProvideIdentifier = "Epost eller användarnamn"
 swedishMessage SendPasswordResetEmail = "Skicka email för återställning av lösenord"
-swedishMessage PasswordResetPrompt = "Skriv in din emailadress eller användarnamn nedan och " `mappend`
-                                     "ett email för återställning av lösenord kommmer att skickas till dig."
+swedishMessage PasswordResetPrompt =
+  "Skriv in din emailadress eller användarnamn nedan och "
+    <> "ett email för återställning av lösenord kommmer att skickas till dig."
 swedishMessage InvalidUsernamePass = "Ogiltig kombination av användarnamn och lösenord"
 -- TODO
 swedishMessage i@(IdentifierNotFound _) = englishMessage i
@@ -290,9 +298,9 @@ germanMessage RegisterLong = "Neuen Account registrieren"
 germanMessage EnterEmail = "Bitte die E-Mail Adresse angeben, eine Bestätigungsmail wird verschickt."
 germanMessage ConfirmationEmailSentTitle = "Bestätigung verschickt."
 germanMessage (ConfirmationEmailSent email) =
-    "Eine Bestätigung wurde an " `mappend`
-    email `mappend`
-    " versandt."
+  "Eine Bestätigung wurde an "
+    <> email
+    <> " versandt."
 germanMessage AddressVerified = "Adresse bestätigt, bitte neues Passwort angeben"
 germanMessage EmailVerifiedChangePass = "Adresse bestätigt, bitte neues Passwort angeben"
 germanMessage EmailVerified = "Adresse bestätigt"
@@ -318,7 +326,8 @@ germanMessage InvalidEmailAddress = "Unzulässiger E-Mail-Anbieter"
 germanMessage PasswordResetTitle = "Passwort zurücksetzen"
 germanMessage ProvideIdentifier = "E-Mail-Adresse oder Nutzername"
 germanMessage SendPasswordResetEmail = "E-Mail zusenden um Passwort zurückzusetzen"
-germanMessage PasswordResetPrompt = "Nach Einhabe der E-Mail-Adresse oder des Nutzernamen wird eine E-Mail zugesendet mit welcher das Passwort zurückgesetzt werden kann."
+germanMessage PasswordResetPrompt =
+  "Nach Einhabe der E-Mail-Adresse oder des Nutzernamen wird eine E-Mail zugesendet mit welcher das Passwort zurückgesetzt werden kann."
 germanMessage InvalidUsernamePass = "Ungültige Kombination aus Nutzername und Passwort"
 germanMessage i@(IdentifierNotFound _) = englishMessage i -- TODO
 germanMessage Logout = "Abmelden"
@@ -336,18 +345,22 @@ frenchMessage Password = "Mot de passe"
 frenchMessage CurrentPassword = "Mot de passe actuel"
 frenchMessage Register = "S'inscrire"
 frenchMessage RegisterLong = "Créer un compte"
-frenchMessage EnterEmail = "Entrez ci-dessous votre adresse électronique, et un message de confirmation vous sera envoyé"
+frenchMessage EnterEmail =
+  "Entrez ci-dessous votre adresse électronique, et un message de confirmation vous sera envoyé"
 frenchMessage ConfirmationEmailSentTitle = "Message de confirmation"
 frenchMessage (ConfirmationEmailSent email) =
-    "Un message de confirmation a été envoyé à " `mappend`
-    email `mappend`
-    "."
-frenchMessage AddressVerified = "Votre adresse électronique a été validée, merci de choisir un nouveau mot de passe."
-frenchMessage EmailVerifiedChangePass = "Votre adresse électronique a été validée, merci de choisir un nouveau mot de passe."
+  "Un message de confirmation a été envoyé à "
+    <> email
+    <> "."
+frenchMessage AddressVerified =
+  "Votre adresse électronique a été validée, merci de choisir un nouveau mot de passe."
+frenchMessage EmailVerifiedChangePass =
+  "Votre adresse électronique a été validée, merci de choisir un nouveau mot de passe."
 frenchMessage EmailVerified = "Votre adresse électronique a été validée"
 frenchMessage InvalidKeyTitle = "Clef de validation incorrecte"
 frenchMessage InvalidKey = "Désolé, mais cette clef de validation est incorrecte"
-frenchMessage InvalidEmailPass = "La combinaison de ce mot de passe et de cette adresse électronique n'existe pas."
+frenchMessage InvalidEmailPass =
+  "La combinaison de ce mot de passe et de cette adresse électronique n'existe pas."
 frenchMessage BadSetPass = "Vous devez être connecté pour choisir un mot de passe"
 frenchMessage SetPassTitle = "Changer de mot de passe"
 frenchMessage SetPass = "Choisir un nouveau mot de passe"
@@ -367,9 +380,10 @@ frenchMessage InvalidEmailAddress = "Adresse électronique spécifiée invalide"
 frenchMessage PasswordResetTitle = "Réinitialisation du mot de passe"
 frenchMessage ProvideIdentifier = "Adresse électronique ou nom d'utilisateur"
 frenchMessage SendPasswordResetEmail = "Envoi d'un courriel pour réinitialiser le mot de passe"
-frenchMessage PasswordResetPrompt = "Entrez votre courriel ou votre nom d'utilisateur ci-dessous, et vous recevrez un message électronique pour réinitialiser votre mot de passe."
+frenchMessage PasswordResetPrompt =
+  "Entrez votre courriel ou votre nom d'utilisateur ci-dessous, et vous recevrez un message électronique pour réinitialiser votre mot de passe."
 frenchMessage InvalidUsernamePass = "La combinaison de ce mot de passe et de ce nom d'utilisateur n'existe pas."
-frenchMessage (IdentifierNotFound ident) = "Nom d'utilisateur introuvable: " `mappend` ident
+frenchMessage (IdentifierNotFound ident) = "Nom d'utilisateur introuvable: " <> ident
 frenchMessage Logout = "Déconnexion"
 frenchMessage LogoutTitle = "Déconnexion"
 frenchMessage AuthError = "Erreur d'authentification" -- FIXME by Google Translate
@@ -385,12 +399,13 @@ norwegianBokmålMessage Password = "Passord"
 norwegianBokmålMessage CurrentPassword = "Current password"
 norwegianBokmålMessage Register = "Registrer"
 norwegianBokmålMessage RegisterLong = "Registrer en ny konto"
-norwegianBokmålMessage EnterEmail = "Skriv inn e-postadressen din nedenfor og en e-postkonfirmasjon vil bli sendt."
+norwegianBokmålMessage EnterEmail =
+  "Skriv inn e-postadressen din nedenfor og en e-postkonfirmasjon vil bli sendt."
 norwegianBokmålMessage ConfirmationEmailSentTitle = "E-postkonfirmasjon sendt."
 norwegianBokmålMessage (ConfirmationEmailSent email) =
-    "En e-postkonfirmasjon har blitt sendt til " `mappend`
-    email `mappend`
-    "."
+  "En e-postkonfirmasjon har blitt sendt til "
+    <> email
+    <> "."
 norwegianBokmålMessage AddressVerified = "Adresse verifisert, vennligst sett et nytt passord."
 norwegianBokmålMessage EmailVerifiedChangePass = "Adresse verifisert, vennligst sett et nytt passord."
 norwegianBokmålMessage EmailVerified = "Adresse verifisert"
@@ -416,7 +431,8 @@ norwegianBokmålMessage InvalidEmailAddress = "Invalid email address provided"
 norwegianBokmålMessage PasswordResetTitle = "Password Reset"
 norwegianBokmålMessage ProvideIdentifier = "Email or Username"
 norwegianBokmålMessage SendPasswordResetEmail = "Send password reset email"
-norwegianBokmålMessage PasswordResetPrompt = "Enter your e-mail address or username below, and a password reset e-mail will be sent to you."
+norwegianBokmålMessage PasswordResetPrompt =
+  "Enter your e-mail address or username below, and a password reset e-mail will be sent to you."
 norwegianBokmålMessage InvalidUsernamePass = "Invalid username/password combination"
 -- TODO
 norwegianBokmålMessage i@(IdentifierNotFound _) = englishMessage i
@@ -438,9 +454,9 @@ japaneseMessage RegisterLong = "新規アカウント登録"
 japaneseMessage EnterEmail = "メールアドレスを入力してください。確認メールが送られます"
 japaneseMessage ConfirmationEmailSentTitle = "確認メールを送信しました"
 japaneseMessage (ConfirmationEmailSent email) =
-    "確認メールを " `mappend`
-    email `mappend`
-    " に送信しました"
+  "確認メールを "
+    <> email
+    <> " に送信しました"
 japaneseMessage AddressVerified = "アドレスは認証されました。新しいパスワードを設定してください"
 japaneseMessage EmailVerifiedChangePass = "アドレスは認証されました。新しいパスワードを設定してください"
 japaneseMessage EmailVerified = "アドレスは認証されました"
@@ -469,7 +485,7 @@ japaneseMessage SendPasswordResetEmail = "パスワード再設定用メール�
 japaneseMessage PasswordResetPrompt = "以下にメールアドレスまたはユーザ名を入力してください。パスワードを再設定するためのメールが送信されます。"
 japaneseMessage InvalidUsernamePass = "ユーザ名とパスワードの組み合わせが間違っています"
 japaneseMessage (IdentifierNotFound ident) =
-  ident `mappend` "は登録されていません"
+  ident <> "は登録されていません"
 japaneseMessage Logout = "ログアウト" -- FIXME by Google Translate
 japaneseMessage LogoutTitle = "ログアウト" -- FIXME by Google Translate
 japaneseMessage AuthError = "認証エラー" -- FIXME by Google Translate
@@ -488,10 +504,9 @@ finnishMessage RegisterLong = "Luo uusi tili"
 finnishMessage EnterEmail = "Kirjoita alle sähköpostiosoitteesi, johon vahvistussähköposti lähetetään."
 finnishMessage ConfirmationEmailSentTitle = "Vahvistussähköposti lähetetty."
 finnishMessage (ConfirmationEmailSent email) =
-    "Vahvistussähköposti on lähetty osoitteeseen " `mappend`
-    email `mappend`
-    "."
-
+  "Vahvistussähköposti on lähetty osoitteeseen "
+    <> email
+    <> "."
 finnishMessage AddressVerified = "Sähköpostiosoite vahvistettu. Anna uusi salasana"
 finnishMessage EmailVerifiedChangePass = "Sähköpostiosoite vahvistettu. Anna uusi salasana"
 finnishMessage EmailVerified = "Sähköpostiosoite vahvistettu"
@@ -517,7 +532,8 @@ finnishMessage InvalidEmailAddress = "Annettu sähköpostiosoite ei kelpaa"
 finnishMessage PasswordResetTitle = "Uuden salasanan tilaaminen"
 finnishMessage ProvideIdentifier = "Sähköpostiosoite tai käyttäjänimi"
 finnishMessage SendPasswordResetEmail = "Lähetä uusi salasana sähköpostitse"
-finnishMessage PasswordResetPrompt = "Anna sähköpostiosoitteesi tai käyttäjätunnuksesi alla, niin lähetämme uuden salasanan sähköpostitse."
+finnishMessage PasswordResetPrompt =
+  "Anna sähköpostiosoitteesi tai käyttäjätunnuksesi alla, niin lähetämme uuden salasanan sähköpostitse."
 finnishMessage InvalidUsernamePass = "Virheellinen käyttäjänimi tai salasana."
 -- TODO
 finnishMessage i@(IdentifierNotFound _) = englishMessage i
@@ -539,9 +555,9 @@ chineseMessage RegisterLong = "注册新帐户"
 chineseMessage EnterEmail = "输入你的邮箱地址，你将收到一封确认邮件。"
 chineseMessage ConfirmationEmailSentTitle = "确认邮件已发送"
 chineseMessage (ConfirmationEmailSent email) =
-    "确认邮件已发送至 " `mappend`
-    email `mappend`
-    "."
+  "确认邮件已发送至 "
+    <> email
+    <> "."
 chineseMessage AddressVerified = "地址验证成功，请设置新密码"
 chineseMessage EmailVerifiedChangePass = "地址验证成功，请设置新密码"
 chineseMessage EmailVerified = "地址验证成功"
@@ -569,7 +585,7 @@ chineseMessage ProvideIdentifier = "邮箱或用户名"
 chineseMessage SendPasswordResetEmail = "发送密码重置邮件"
 chineseMessage PasswordResetPrompt = "输入你的邮箱地址或用户名，你将收到一封密码重置邮件。"
 chineseMessage InvalidUsernamePass = "无效的用户名/密码组合"
-chineseMessage (IdentifierNotFound ident) = "邮箱/用户名不存在: " `mappend` ident
+chineseMessage (IdentifierNotFound ident) = "邮箱/用户名不存在: " <> ident
 chineseMessage Logout = "注销"
 chineseMessage LogoutTitle = "注销"
 chineseMessage AuthError = "验证错误"
@@ -588,7 +604,7 @@ czechMessage RegisterLong = "Zaregistrovat nový účet"
 czechMessage EnterEmail = "Níže zadejte svou e-mailovou adresu a bude vám poslán potvrzovací e-mail."
 czechMessage ConfirmationEmailSentTitle = "Potvrzovací e-mail odeslán"
 czechMessage (ConfirmationEmailSent email) =
-    "Potvrzovací e-mail byl odeslán na " `mappend` email `mappend` "."
+  "Potvrzovací e-mail byl odeslán na " <> email <> "."
 czechMessage AddressVerified = "Adresa byla ověřena, prosím nastavte si nové heslo"
 czechMessage EmailVerifiedChangePass = "Adresa byla ověřena, prosím nastavte si nové heslo"
 czechMessage EmailVerified = "Adresa byla ověřena"
@@ -614,7 +630,8 @@ czechMessage InvalidEmailAddress = "Zadaná e-mailová adresa je neplatná"
 czechMessage PasswordResetTitle = "Obnovení hesla"
 czechMessage ProvideIdentifier = "E-mail nebo uživatelské jméno"
 czechMessage SendPasswordResetEmail = "Poslat e-mail pro obnovení hesla"
-czechMessage PasswordResetPrompt = "Zadejte svou e-mailovou adresu nebo uživatelské jméno a bude vám poslán email pro obnovení hesla."
+czechMessage PasswordResetPrompt =
+  "Zadejte svou e-mailovou adresu nebo uživatelské jméno a bude vám poslán email pro obnovení hesla."
 czechMessage InvalidUsernamePass = "Neplatná kombinace uživatelského jména a hesla"
 -- TODO
 czechMessage i@(IdentifierNotFound _) = englishMessage i
@@ -635,12 +652,13 @@ russianMessage Password = "Пароль"
 russianMessage CurrentPassword = "Старый пароль"
 russianMessage Register = "Регистрация"
 russianMessage RegisterLong = "Создать учётную запись"
-russianMessage EnterEmail = "Введите свой адрес эл.почты ниже, вам будет отправлено письмо для подтверждения."
+russianMessage EnterEmail =
+  "Введите свой адрес эл.почты ниже, вам будет отправлено письмо для подтверждения."
 russianMessage ConfirmationEmailSentTitle = "Письмо для подтверждения отправлено"
 russianMessage (ConfirmationEmailSent email) =
-    "Письмо для подтверждения было отправлено на адрес " `mappend`
-    email `mappend`
-    "."
+  "Письмо для подтверждения было отправлено на адрес "
+    <> email
+    <> "."
 russianMessage AddressVerified = "Адрес подтверждён. Пожалуйста, установите новый пароль."
 russianMessage EmailVerifiedChangePass = "Адрес подтверждён. Пожалуйста, установите новый пароль."
 russianMessage EmailVerified = "Адрес подтверждён"
@@ -666,9 +684,10 @@ russianMessage InvalidEmailAddress = "Указан неверный адрес �
 russianMessage PasswordResetTitle = "Сброс пароля"
 russianMessage ProvideIdentifier = "Имя пользователя или эл.почта"
 russianMessage SendPasswordResetEmail = "Отправить письмо для сброса пароля"
-russianMessage PasswordResetPrompt = "Введите адрес эл.почты или ваше имя пользователя ниже, вам будет отправлено письмо для сброса пароля."
+russianMessage PasswordResetPrompt =
+  "Введите адрес эл.почты или ваше имя пользователя ниже, вам будет отправлено письмо для сброса пароля."
 russianMessage InvalidUsernamePass = "Неверное сочетание имени пользователя и пароля"
-russianMessage (IdentifierNotFound ident) = "Логин не найден: " `mappend` ident
+russianMessage (IdentifierNotFound ident) = "Логин не найден: " <> ident
 russianMessage Logout = "Выйти"
 russianMessage LogoutTitle = "Выйти"
 russianMessage AuthError = "Ошибка аутентификации"
@@ -684,12 +703,13 @@ dutchMessage Password = "Wachtwoord"
 dutchMessage CurrentPassword = "Huidig wachtwoord"
 dutchMessage Register = "Registreren"
 dutchMessage RegisterLong = "Registreer een nieuw account"
-dutchMessage EnterEmail = "Voer uw e-mailadres hieronder in, er zal een bevestigings-e-mail naar u worden verzonden."
+dutchMessage EnterEmail =
+  "Voer uw e-mailadres hieronder in, er zal een bevestigings-e-mail naar u worden verzonden."
 dutchMessage ConfirmationEmailSentTitle = "Bevestigings-e-mail verzonden"
 dutchMessage (ConfirmationEmailSent email) =
-    "Een bevestigings-e-mail is verzonden naar " `mappend`
-    email `mappend`
-    "."
+  "Een bevestigings-e-mail is verzonden naar "
+    <> email
+    <> "."
 dutchMessage AddressVerified = "Adres geverifieerd, stel alstublieft een nieuwe wachtwoord in"
 dutchMessage EmailVerifiedChangePass = "Adres geverifieerd, stel alstublieft een nieuwe wachtwoord in"
 dutchMessage EmailVerified = "Adres geverifieerd"
@@ -715,9 +735,10 @@ dutchMessage InvalidEmailAddress = "Ongeldig e-mailadres opgegeven"
 dutchMessage PasswordResetTitle = "Wachtwoord wijzigen"
 dutchMessage ProvideIdentifier = "E-mailadres of gebruikersnaam"
 dutchMessage SendPasswordResetEmail = "Stuur een wachtwoord reset e-mail"
-dutchMessage PasswordResetPrompt = "Voer uw e-mailadres of gebruikersnaam hieronder in, er zal een e-mail naar u worden verzonden waarmee u uw wachtwoord kunt wijzigen."
+dutchMessage PasswordResetPrompt =
+  "Voer uw e-mailadres of gebruikersnaam hieronder in, er zal een e-mail naar u worden verzonden waarmee u uw wachtwoord kunt wijzigen."
 dutchMessage InvalidUsernamePass = "Ongeldige gebruikersnaam/wachtwoord combinatie"
-dutchMessage (IdentifierNotFound ident) = "Inloggegevens niet gevonden: " `mappend` ident
+dutchMessage (IdentifierNotFound ident) = "Inloggegevens niet gevonden: " <> ident
 dutchMessage Logout = "Uitloggen"
 dutchMessage LogoutTitle = "Uitloggen"
 dutchMessage AuthError = "Verificatiefout"
@@ -736,7 +757,8 @@ croatianMessage CurrentPassword = "Current Password"
 croatianMessage Register = "Registracija"
 croatianMessage RegisterLong = "Registracija novog računa"
 croatianMessage EnterEmail = "Dolje unesite adresu e-pošte, pa ćemo vam poslati e-poruku za potvrdu."
-croatianMessage PasswordResetPrompt = "Dolje unesite adresu e-pošte ili korisničko ime, pa ćemo vam poslati e-poruku za potvrdu."
+croatianMessage PasswordResetPrompt =
+  "Dolje unesite adresu e-pošte ili korisničko ime, pa ćemo vam poslati e-poruku za potvrdu."
 croatianMessage ConfirmationEmailSentTitle = "E-poruka za potvrdu"
 croatianMessage (ConfirmationEmailSent email) = "E-poruka za potvrdu poslana je na adresu " <> email <> "."
 croatianMessage AddressVerified = "Adresa ovjerena, postavite novu lozinku"
@@ -779,12 +801,13 @@ danishMessage Password = "Kodeord"
 danishMessage CurrentPassword = "Nuværende kodeord"
 danishMessage Register = "Opret"
 danishMessage RegisterLong = "Opret en ny konto"
-danishMessage EnterEmail = "Indtast din e-mailadresse nedenfor og en bekræftelsesmail vil blive sendt til dig."
+danishMessage EnterEmail =
+  "Indtast din e-mailadresse nedenfor og en bekræftelsesmail vil blive sendt til dig."
 danishMessage ConfirmationEmailSentTitle = "Bekræftelsesmail sendt"
 danishMessage (ConfirmationEmailSent email) =
-    "En bekræftelsesmail er sendt til " `mappend`
-    email `mappend`
-    "."
+  "En bekræftelsesmail er sendt til "
+    <> email
+    <> "."
 danishMessage AddressVerified = "Adresse bekræftet, sæt venligst et nyt kodeord"
 danishMessage EmailVerifiedChangePass = "Adresse bekræftet, sæt venligst et nyt kodeord"
 danishMessage EmailVerified = "Adresse bekræftet"
@@ -810,9 +833,10 @@ danishMessage InvalidEmailAddress = "Ugyldig e-mailadresse indtastet"
 danishMessage PasswordResetTitle = "Nulstilning af kodeord"
 danishMessage ProvideIdentifier = "E-mail eller brugernavn"
 danishMessage SendPasswordResetEmail = "Send kodeordsnulstillingsmail"
-danishMessage PasswordResetPrompt = "Indtast din e-mailadresse eller dit brugernavn nedenfor, så bliver en kodeordsnulstilningsmail sendt til dig."
+danishMessage PasswordResetPrompt =
+  "Indtast din e-mailadresse eller dit brugernavn nedenfor, så bliver en kodeordsnulstilningsmail sendt til dig."
 danishMessage InvalidUsernamePass = "Ugyldigt brugernavn/kodeord"
-danishMessage (IdentifierNotFound ident) = "Brugernavn findes ikke: " `mappend` ident
+danishMessage (IdentifierNotFound ident) = "Brugernavn findes ikke: " <> ident
 danishMessage Logout = "Log ud"
 danishMessage LogoutTitle = "Log ud"
 danishMessage AuthError = "Fejl ved bekræftelse af identitet"
@@ -831,9 +855,9 @@ koreanMessage RegisterLong = "새 계정 등록"
 koreanMessage EnterEmail = "이메일 주소를 아래에 입력하시면 확인 이메일이 발송됩니다."
 koreanMessage ConfirmationEmailSentTitle = "확인 이메일을 보냈습니다"
 koreanMessage (ConfirmationEmailSent email) =
-    "확인 이메일을 " `mappend`
-    email `mappend`
-    "에 보냈습니다."
+  "확인 이메일을 "
+    <> email
+    <> "에 보냈습니다."
 koreanMessage AddressVerified = "주소가 인증되었습니다. 새 비밀번호를 설정하세요."
 koreanMessage EmailVerifiedChangePass = "주소가 인증되었습니다. 새 비밀번호를 설정하세요."
 koreanMessage EmailVerified = "주소가 인증되었습니다"
@@ -861,7 +885,7 @@ koreanMessage ProvideIdentifier = "이메일 주소나 사용자 이름"
 koreanMessage SendPasswordResetEmail = "비밀번호 재설정 이메일 보내기"
 koreanMessage PasswordResetPrompt = "이메일 주소나 사용자 이름을 아래에 입력하시면 비밀번호 재설정 이메일이 발송됩니다."
 koreanMessage InvalidUsernamePass = "사용자 이름이나 비밀번호가 잘못되었습니다"
-koreanMessage (IdentifierNotFound ident) = ident `mappend` "는 등록되어 있지 않습니다"
+koreanMessage (IdentifierNotFound ident) = ident <> "는 등록되어 있지 않습니다"
 koreanMessage Logout = "로그아웃"
 koreanMessage LogoutTitle = "로그아웃"
 koreanMessage AuthError = "인증오류"
@@ -883,7 +907,7 @@ romanianMessage RegisterLong = "Înregistrați un cont nou"
 romanianMessage EnterEmail = "Introduceți adresa dvs. de e-mail pentru a primi un e-mail de confirmare."
 romanianMessage ConfirmationEmailSentTitle = "Un mesaj de confirmare a fost trimis la adresa dvs. de e-mail"
 romanianMessage (ConfirmationEmailSent email) =
-    "Un mesaj de confirmare a fost trimis la " `mappend` email `mappend` "."
+  "Un mesaj de confirmare a fost trimis la " <> email <> "."
 romanianMessage AddressVerified = "Adresa de e-mail a fost verificată, vă rugăm să setați o parolă nouă"
 romanianMessage EmailVerifiedChangePass = "Adresa de e-mail a fost verificată, vă rugăm să setați o parolă nouă"
 romanianMessage EmailVerified = "Adresa de e-mail a fost verificată"
@@ -910,9 +934,9 @@ romanianMessage PasswordResetTitle = "Resetarea parolei"
 romanianMessage ProvideIdentifier = "Adresă de e-mail sau nume de utilizator"
 romanianMessage SendPasswordResetEmail = "Trimite un e-mail pentru resetarea parolei"
 romanianMessage PasswordResetPrompt =
-    "Introduceți adresa dvs. de e-mail sau numele de utilizator pentru a primi un e-mail de resetare a parolei."
+  "Introduceți adresa dvs. de e-mail sau numele de utilizator pentru a primi un e-mail de resetare a parolei."
 romanianMessage InvalidUsernamePass = "Nume de utilizator și/sau parolă incorect(ă)"
-romanianMessage (IdentifierNotFound ident) = "Numele de utilizator nu a fost găsit: " `mappend` ident
+romanianMessage (IdentifierNotFound ident) = "Numele de utilizator nu a fost găsit: " <> ident
 romanianMessage Logout = "Deconectați-vă"
 romanianMessage LogoutTitle = "Deconectare"
 romanianMessage AuthError = "Eroare de autentificare"

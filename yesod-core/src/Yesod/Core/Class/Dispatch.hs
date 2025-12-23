@@ -8,46 +8,47 @@
 module Yesod.Core.Class.Dispatch where
 
 import qualified Network.Wai as W
-import Yesod.Core.Types
+import Yesod.Core.Class.Yesod
 import Yesod.Core.Content (ToTypedContent (..))
 import Yesod.Core.Handler (sendWaiApplication)
-import Yesod.Core.Class.Yesod
+import Yesod.Core.Types
 
 -- | This class is automatically instantiated when you use the template haskell
 -- mkYesod function. You should never need to deal with it directly.
-class Yesod site => YesodDispatch site where
-    yesodDispatch :: YesodRunnerEnv site -> W.Application
+class (Yesod site) => YesodDispatch site where
+  yesodDispatch :: YesodRunnerEnv site -> W.Application
 
 class YesodSubDispatch sub master where
-    yesodSubDispatch :: YesodSubRunnerEnv sub master -> W.Application
+  yesodSubDispatch :: YesodSubRunnerEnv sub master -> W.Application
 
 instance YesodSubDispatch WaiSubsite master where
-    yesodSubDispatch YesodSubRunnerEnv {..} = app
-      where
-        WaiSubsite app = ysreGetSub $ yreSite ysreParentEnv
+  yesodSubDispatch YesodSubRunnerEnv{..} = app
+   where
+    WaiSubsite app = ysreGetSub $ yreSite ysreParentEnv
 
 instance YesodSubDispatch WaiSubsiteWithAuth master where
-  yesodSubDispatch YesodSubRunnerEnv {..} req =
-      ysreParentRunner handlert ysreParentEnv (fmap ysreToParentRoute route) req
-    where
-      route = Just $ WaiSubsiteWithAuthRoute (W.pathInfo req) []
-      WaiSubsiteWithAuth set = ysreGetSub $ yreSite $ ysreParentEnv
-      handlert = sendWaiApplication set
+  yesodSubDispatch YesodSubRunnerEnv{..} req =
+    ysreParentRunner handlert ysreParentEnv (fmap ysreToParentRoute route) req
+   where
+    route = Just $ WaiSubsiteWithAuthRoute (W.pathInfo req) []
+    WaiSubsiteWithAuth set = ysreGetSub $ yreSite $ ysreParentEnv
+    handlert = sendWaiApplication set
 
-subHelper
-  :: ToTypedContent content
-  => SubHandlerFor child master content
-  -> YesodSubRunnerEnv child master
-  -> Maybe (Route child)
-  -> W.Application
-subHelper (SubHandlerFor f) YesodSubRunnerEnv {..} mroute =
-    ysreParentRunner handler ysreParentEnv (fmap ysreToParentRoute mroute)
-  where
-    handler = fmap toTypedContent $ HandlerFor $ \hd ->
-      let rhe = handlerEnv hd
-          rhe' = rhe
+subHelper ::
+  (ToTypedContent content) =>
+  SubHandlerFor child master content ->
+  YesodSubRunnerEnv child master ->
+  Maybe (Route child) ->
+  W.Application
+subHelper (SubHandlerFor f) YesodSubRunnerEnv{..} mroute =
+  ysreParentRunner handler ysreParentEnv (fmap ysreToParentRoute mroute)
+ where
+  handler = fmap toTypedContent $ HandlerFor $ \hd ->
+    let rhe = handlerEnv hd
+        rhe' =
+          rhe
             { rheRoute = mroute
             , rheChild = ysreGetSub $ yreSite ysreParentEnv
             , rheRouteToMaster = ysreToParentRoute
             }
-       in f hd { handlerEnv = rhe' }
+     in f hd{handlerEnv = rhe'}

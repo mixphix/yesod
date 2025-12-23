@@ -32,42 +32,42 @@
 --
 --     - Accept: application\/json
 --     - Content-Type: application\/json
-
 module Yesod.Auth.Dummy
-    ( authDummy
-    ) where
+  ( authDummy
+  ) where
 
-import           Data.Aeson.Types (Parser, Result (..))
+import Data.Aeson.Types (Parser, Result (..))
 import qualified Data.Aeson.Types as A (parseEither, withObject)
-import           Data.Text        (Text)
-import           Yesod.Auth
-import           Yesod.Core
-import           Yesod.Form       (ireq, runInputPost, textField)
+import Data.Text (Text)
+import Yesod.Auth
+import Yesod.Core
+import Yesod.Form (ireq, runInputPost, textField)
 
 identParser :: Value -> Parser Text
 identParser = A.withObject "Ident" (.: "ident")
 
-authDummy :: YesodAuth m => AuthPlugin m
+authDummy :: (YesodAuth m) => AuthPlugin m
 authDummy =
-    AuthPlugin "dummy" dispatch login
-  where
-    dispatch :: Text -> [Text] -> AuthHandler m TypedContent
-    dispatch "POST" [] = do
-        (jsonResult :: Result Value) <- parseCheckJsonBody
-        eIdent <- case jsonResult of
-            Success val -> return $ A.parseEither identParser val
-            Error   err -> return $ Left err
-        case eIdent of
-            Right ident ->
-                setCredsRedirect $ Creds "dummy" ident []
-            Left  _     -> do
-                ident <- runInputPost $ ireq textField "ident"
-                setCredsRedirect $ Creds "dummy" ident []
-    dispatch _ _ = notFound
-    url = PluginR "dummy" []
-    login authToMaster = do
-        request <- getRequest
-        toWidget [hamlet|
+  AuthPlugin "dummy" dispatch login
+ where
+  dispatch :: Text -> [Text] -> AuthHandler m TypedContent
+  dispatch "POST" [] = do
+    (jsonResult :: Result Value) <- parseCheckJsonBody
+    eIdent <- case jsonResult of
+      Success val -> return $ A.parseEither identParser val
+      Error err -> return $ Left err
+    case eIdent of
+      Right ident ->
+        setCredsRedirect $ Creds "dummy" ident []
+      Left _ -> do
+        ident <- runInputPost $ ireq textField "ident"
+        setCredsRedirect $ Creds "dummy" ident []
+  dispatch _ _ = notFound
+  url = PluginR "dummy" []
+  login authToMaster = do
+    request <- getRequest
+    toWidget
+      [hamlet|
 $newline never
 <form method="post" action="@{authToMaster url}">
     $maybe t <- reqToken request

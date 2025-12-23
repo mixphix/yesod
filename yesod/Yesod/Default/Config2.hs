@@ -1,61 +1,52 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | Some next-gen helper functions for the scaffolding's configuration system.
 module Yesod.Default.Config2
-    ( -- * Locally defined
-      configSettingsYml
-    , getDevSettings
-    , develMainHelper
-    , makeYesodLogger
-      -- * Re-exports from Data.Yaml.Config
-    , applyCurrentEnv
-    , getCurrentEnv
-    , applyEnvValue
-    , loadYamlSettings
-    , loadYamlSettingsArgs
-    , EnvUsage
-    , ignoreEnv
-    , useEnv
-    , requireEnv
-    , useCustomEnv
-    , requireCustomEnv
-      -- * For backwards compatibility
-    , MergedValue (..)
-    , loadAppSettings
-    , loadAppSettingsArgs
-    ) where
+  ( -- * Locally defined
+    configSettingsYml
+  , getDevSettings
+  , develMainHelper
+  , makeYesodLogger
 
+    -- * Re-exports from Data.Yaml.Config
+  , applyCurrentEnv
+  , getCurrentEnv
+  , applyEnvValue
+  , loadYamlSettings
+  , loadYamlSettingsArgs
+  , EnvUsage
+  , ignoreEnv
+  , useEnv
+  , requireEnv
+  , useCustomEnv
+  , requireCustomEnv
 
-import Data.Yaml.Config
+    -- * For backwards compatibility
+  , MergedValue (..)
+  , loadAppSettings
+  , loadAppSettingsArgs
+  ) where
 
+import Control.Concurrent (forkIO, threadDelay)
 import Data.Aeson
-import System.Environment (getEnvironment)
+import qualified Data.Aeson.KeyMap as H
+import Data.Maybe (fromMaybe)
+import Data.Yaml.Config
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp
-import Text.Read (readMaybe)
-import Data.Maybe (fromMaybe)
-import Control.Concurrent (forkIO, threadDelay)
-import System.Exit (exitSuccess)
-import System.Directory (doesFileExist)
 import Network.Wai.Logger (clockDateCacher)
-import Yesod.Core.Types (Logger (Logger))
+import System.Directory (doesFileExist)
+import System.Environment (getEnvironment)
+import System.Exit (exitSuccess)
 import System.Log.FastLogger (LoggerSet)
+import System.Posix.Signals (Handler (Catch), installHandler, sigINT)
+import Text.Read (readMaybe)
+import Yesod.Core.Types (Logger (Logger))
 
-#if MIN_VERSION_aeson(2, 0, 0)
-import qualified Data.Aeson.KeyMap as H
-#else
-import qualified Data.HashMap.Strict as H
-#endif
-
-#ifndef mingw32_HOST_OS
-import System.Posix.Signals (installHandler, sigINT, Handler(Catch))
-#endif
-
-newtype MergedValue = MergedValue { getMergedValue :: Value }
+newtype MergedValue = MergedValue {getMergedValue :: Value}
 
 instance Semigroup MergedValue where
-    MergedValue x <> MergedValue y = MergedValue $ mergeValues x y
+  MergedValue x <> MergedValue y = MergedValue $ mergeValues x y
 
 -- | Left biased
 mergeValues :: Value -> Value -> Value
@@ -69,22 +60,26 @@ mergeValues x _ = x
 -- * Run time environment variables
 --
 -- * The default compile time config file
-loadAppSettings
-    :: FromJSON settings
-    => [FilePath] -- ^ run time config files to use, earlier files have precedence
-    -> [Value] -- ^ any other values to use, usually from compile time config. overridden by files
-    -> EnvUsage
-    -> IO settings
+loadAppSettings ::
+  (FromJSON settings) =>
+  -- | run time config files to use, earlier files have precedence
+  [FilePath] ->
+  -- | any other values to use, usually from compile time config. overridden by files
+  [Value] ->
+  EnvUsage ->
+  IO settings
 loadAppSettings = loadYamlSettings
 {-# DEPRECATED loadAppSettings "Use loadYamlSettings" #-}
 
 -- | Same as @loadAppSettings@, but get the list of runtime config files from
 -- the command line arguments.
-loadAppSettingsArgs
-    :: FromJSON settings
-    => [Value] -- ^ any other values to use, usually from compile time config. overridden by files
-    -> EnvUsage -- ^ use environment variables
-    -> IO settings
+loadAppSettingsArgs ::
+  (FromJSON settings) =>
+  -- | any other values to use, usually from compile time config. overridden by files
+  [Value] ->
+  -- | use environment variables
+  EnvUsage ->
+  IO settings
 loadAppSettingsArgs = loadYamlSettingsArgs
 {-# DEPRECATED loadAppSettingsArgs "Use loadYamlSettingsArgs" #-}
 
@@ -96,36 +91,34 @@ configSettingsYml = "config/settings.yml"
 -- DISPLAY_PORT and prints appropriate messages.
 getDevSettings :: Settings -> IO Settings
 getDevSettings settings = do
-    env <- getEnvironment
-    let p = fromMaybe (getPort settings) $ lookup "PORT" env >>= readMaybe
-        pdisplay = fromMaybe p $ lookup "DISPLAY_PORT" env >>= readMaybe
-    putStrLn $ "Devel application launched: http://localhost:" ++ show pdisplay
-    return $ setPort p settings
+  env <- getEnvironment
+  let p = fromMaybe (getPort settings) $ lookup "PORT" env >>= readMaybe
+      pdisplay = fromMaybe p $ lookup "DISPLAY_PORT" env >>= readMaybe
+  putStrLn $ "Devel application launched: http://localhost:" ++ show pdisplay
+  return $ setPort p settings
 
 -- | Helper for develMain in the scaffolding.
 develMainHelper :: IO (Settings, Application) -> IO ()
 develMainHelper getSettingsApp = do
-#ifndef mingw32_HOST_OS
-    _ <- installHandler sigINT (Catch $ return ()) Nothing
-#endif
+  _ <- installHandler sigINT (Catch $ return ()) Nothing
 
-    putStrLn "Starting devel application"
-    (settings, app) <- getSettingsApp
-    _ <- forkIO $ runSettings settings app
-    loop
-  where
-    loop :: IO ()
-    loop = do
-        threadDelay 100000
-        e <- doesFileExist "yesod-devel/devel-terminate"
-        if e then terminateDevel else loop
+  putStrLn "Starting devel application"
+  (settings, app) <- getSettingsApp
+  _ <- forkIO $ runSettings settings app
+  loop
+ where
+  loop :: IO ()
+  loop = do
+    threadDelay 100000
+    e <- doesFileExist "yesod-devel/devel-terminate"
+    if e then terminateDevel else loop
 
-    terminateDevel :: IO ()
-    terminateDevel = exitSuccess
+  terminateDevel :: IO ()
+  terminateDevel = exitSuccess
 
 -- | Create a 'Logger' value (from yesod-core) out of a 'LoggerSet' (from
 -- fast-logger).
 makeYesodLogger :: LoggerSet -> IO Logger
 makeYesodLogger loggerSet' = do
-    (getter, _) <- clockDateCacher
-    return $! Yesod.Core.Types.Logger loggerSet' getter
+  (getter, _) <- clockDateCacher
+  return $! Yesod.Core.Types.Logger loggerSet' getter

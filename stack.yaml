@@ -14,5 +14,5 @@ packages:
 - ./yesod
 - ./yesod-eventsource
 - ./yesod-websockets
-
-extra-deps: []
+extra-deps:
+  - ../shakespeare

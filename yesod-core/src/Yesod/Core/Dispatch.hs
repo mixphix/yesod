@@ -6,54 +6,60 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Yesod.Core.Dispatch
-    ( -- * Quasi-quoted routing
-      parseRoutes
-    , parseRoutesNoCheck
-    , parseRoutesFile
-    , parseRoutesFileNoCheck
-    , mkYesod
-    , mkYesodOpts
-    , mkYesodWith
-      -- ** More fine-grained
-    , mkYesodData
-    , mkYesodDataOpts
-    , mkYesodSubData
-    , mkYesodSubDataOpts
-    , mkYesodDispatch
-    , mkYesodDispatchOpts
-    , mkYesodSubDispatch
-      -- *** Route generation options
-    , RouteOpts
-    , defaultOpts
-    , setEqDerived
-    , setShowDerived
-    , setReadDerived
-    , setCreateResources
-    , setParameterizedSubroute
-      -- *** Helpers
-    , defaultGen
-    , getGetMaxExpires
-      -- ** Path pieces
-    , PathPiece (..)
-    , PathMultiPiece (..)
-    , Texts
-      -- * Convert to WAI
-    , toWaiApp
-    , toWaiAppPlain
-    , toWaiAppYre
-    , warp
-    , warpDebug
-    , warpEnv
-    , mkDefaultMiddlewares
-    , defaultMiddlewaresNoLogging
-      -- * WAI subsites
-    , WaiSubsite (..)
-    , WaiSubsiteWithAuth (..)
-    ) where
+  ( -- * Quasi-quoted routing
+    parseRoutes
+  , parseRoutesNoCheck
+  , parseRoutesFile
+  , parseRoutesFileNoCheck
+  , mkYesod
+  , mkYesodOpts
+  , mkYesodWith
 
-import Prelude hiding (exp)
-import Yesod.Core.Internal.TH
+    -- ** More fine-grained
+  , mkYesodData
+  , mkYesodDataOpts
+  , mkYesodSubData
+  , mkYesodSubDataOpts
+  , mkYesodDispatch
+  , mkYesodDispatchOpts
+  , mkYesodSubDispatch
+
+    -- *** Route generation options
+  , RouteOpts
+  , defaultOpts
+  , setEqDerived
+  , setShowDerived
+  , setReadDerived
+  , setCreateResources
+  , setParameterizedSubroute
+
+    -- *** Helpers
+  , defaultGen
+  , getGetMaxExpires
+
+    -- ** Path pieces
+  , PathPiece (..)
+  , PathMultiPiece (..)
+  , Texts
+
+    -- * Convert to WAI
+  , toWaiApp
+  , toWaiAppPlain
+  , toWaiAppYre
+  , warp
+  , warpDebug
+  , warpEnv
+  , mkDefaultMiddlewares
+  , defaultMiddlewaresNoLogging
+
+    -- * WAI subsites
+  , WaiSubsite (..)
+  , WaiSubsiteWithAuth (..)
+  ) where
+
 import Language.Haskell.TH.Syntax (qLocation)
+import Yesod.Core.Internal.TH
+import Prelude hiding (exp)
 
 import Web.PathPieces
 
@@ -61,60 +67,59 @@ import qualified Network.Wai as W
 
 import Data.ByteString.Lazy.Char8 ()
 
-import Data.Bits ((.|.), finiteBitSize, shiftL)
-import Data.Text (Text)
-import qualified Data.ByteString as S
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString.Char8 as S8
-import Data.ByteString.Builder (byteString, toLazyByteString)
-#if !MIN_VERSION_wai_extra(3,1,14)
-import Data.Default (def)
-#endif
-import Network.HTTP.Types (status301, status307)
-import Yesod.Routes.Parse
-import Yesod.Core.Types
-import Yesod.Core.Class.Yesod
-import Yesod.Core.Class.Dispatch
-import Yesod.Core.Internal.Run
-import Text.Read (readMaybe)
-import System.Environment (getEnvironment)
-import System.Entropy (getEntropy)
-import Control.AutoUpdate (mkAutoUpdate, defaultUpdateSettings, updateAction, updateFreq)
-import Yesod.Core.Internal.Util (getCurrentMaxExpiresRFC1123)
-
-import Network.Wai.Middleware.Autohead
-import Network.Wai.Middleware.AcceptOverride
-import Network.Wai.Middleware.RequestLogger
-import Network.Wai.Middleware.Gzip (
-    gzip,
-#if MIN_VERSION_wai_extra(3,1,14)
-    defaultGzipSettings,
-#endif
- )
-import Network.Wai.Middleware.MethodOverride
-
-import qualified Network.Wai.Handler.Warp
-import System.Log.FastLogger
-import Control.Monad.Logger
+import Control.AutoUpdate
+  ( defaultUpdateSettings
+  , mkAutoUpdate
+  , updateAction
+  , updateFreq
+  )
 import Control.Monad (when)
-import qualified Paths_yesod_core
+import Control.Monad.Logger
+import Data.Bits (finiteBitSize, shiftL, (.|.))
+import qualified Data.ByteString as S
+import Data.ByteString.Builder (byteString, toLazyByteString)
+import qualified Data.ByteString.Char8 as S8
+import qualified Data.ByteString.Lazy as BL
+import Data.Text (Text)
 import Data.Version (showVersion)
+import Network.HTTP.Types (status301, status307)
+import qualified Network.Wai.Handler.Warp
+import Network.Wai.Middleware.AcceptOverride
+import Network.Wai.Middleware.Autohead
+import Network.Wai.Middleware.Gzip
+  ( defaultGzipSettings
+  , gzip
+  )
+import Network.Wai.Middleware.MethodOverride
+import Network.Wai.Middleware.RequestLogger
+import qualified Paths_yesod_core
+import System.Entropy (getEntropy)
+import System.Environment (getEnvironment)
+import Text.Read (readMaybe)
+import Yesod.Core.Class.Dispatch
+import Yesod.Core.Class.Yesod
+import Yesod.Core.Internal.Run
+import Yesod.Core.Internal.Util (getCurrentMaxExpiresRFC1123)
+import Yesod.Core.Types
+import Yesod.Routes.Parse
 
 -- | Convert the given argument into a WAI application, executable with any WAI
 -- handler. This function will provide no middlewares; if you want commonly
 -- used middlewares, please use 'toWaiApp'.
-toWaiAppPlain :: YesodDispatch site => site -> IO W.Application
+toWaiAppPlain :: (YesodDispatch site) => site -> IO W.Application
 toWaiAppPlain site = do
-    logger <- makeLogger site
-    sb <- makeSessionBackend site
-    getMaxExpires <- getGetMaxExpires
-    return $ toWaiAppYre YesodRunnerEnv
-            { yreLogger = logger
-            , yreSite = site
-            , yreSessionBackend = sb
-            , yreGen = defaultGen
-            , yreGetMaxExpires = getMaxExpires
-            }
+  logger <- makeLogger site
+  sb <- makeSessionBackend site
+  getMaxExpires <- getGetMaxExpires
+  return $
+    toWaiAppYre
+      YesodRunnerEnv
+        { yreLogger = logger
+        , yreSite = site
+        , yreSessionBackend = sb
+        , yreGen = defaultGen
+        , yreGetMaxExpires = getMaxExpires
+        }
 
 -- | Generate a random number uniformly distributed in the full range
 -- of 'Int'.
@@ -127,44 +132,51 @@ toWaiAppPlain site = do
 -- @since 1.6.21.0
 defaultGen :: IO Int
 defaultGen = bsToInt <$> getEntropy bytes
-  where
-    bits = finiteBitSize (undefined :: Int)
-    bytes = div (bits + 7) 8
-    bsToInt = S.foldl' (\v i -> shiftL v 8 .|. fromIntegral i) 0
+ where
+  bits = finiteBitSize (undefined :: Int)
+  bytes = div (bits + 7) 8
+  bsToInt = S.foldl' (\v i -> shiftL v 8 .|. fromIntegral i) 0
 
 -- | Pure low level function to construct WAI application. Usefull
 -- when you need not standard way to run your app, or want to embed it
 -- inside another app.
 --
 -- @since 1.4.29
-toWaiAppYre :: YesodDispatch site => YesodRunnerEnv site -> W.Application
+toWaiAppYre :: (YesodDispatch site) => YesodRunnerEnv site -> W.Application
 toWaiAppYre yre req =
-    case cleanPath site $ W.pathInfo req of
-        Left pieces -> sendRedirect site pieces req
-        Right pieces -> yesodDispatch yre req
-            { W.pathInfo = pieces
-            }
-  where
-    site = yreSite yre
-    sendRedirect :: Yesod master => master -> [Text] -> W.Application
-    sendRedirect y segments' env sendResponse =
-         sendResponse $ W.responseLBS status
-                [ ("Content-Type", "text/plain")
-                , ("Location", BL.toStrict $ toLazyByteString dest')
-                ] "Redirecting"
-      where
-        -- Ensure that non-GET requests get redirected correctly. See:
-        -- https://github.com/yesodweb/yesod/issues/951
+  case cleanPath site $ W.pathInfo req of
+    Left pieces -> sendRedirect site pieces req
+    Right pieces ->
+      yesodDispatch
+        yre
+        req
+          { W.pathInfo = pieces
+          }
+ where
+  site = yreSite yre
+  sendRedirect :: (Yesod master) => master -> [Text] -> W.Application
+  sendRedirect y segments' env sendResponse =
+    sendResponse $
+      W.responseLBS
         status
-            | W.requestMethod env == "GET" = status301
-            | otherwise                    = status307
+        [ ("Content-Type", "text/plain")
+        , ("Location", BL.toStrict $ toLazyByteString dest')
+        ]
+        "Redirecting"
+   where
+    -- Ensure that non-GET requests get redirected correctly. See:
+    -- https://github.com/yesodweb/yesod/issues/951
+    status
+      | W.requestMethod env == "GET" = status301
+      | otherwise = status307
 
-        dest = joinPath y (resolveApproot y env) segments' []
-        dest' =
-            if S.null (W.rawQueryString env)
-                then dest
-                else dest `mappend`
-                     byteString (W.rawQueryString env)
+    dest = joinPath y (resolveApproot y env) segments' []
+    dest' =
+      if S.null (W.rawQueryString env)
+        then dest
+        else
+          dest
+            <> byteString (W.rawQueryString env)
 
 -- | Same as 'toWaiAppPlain', but provides a default set of middlewares. This
 -- set may change with future releases, but currently covers:
@@ -178,31 +190,32 @@ toWaiAppYre yre req =
 -- * Request method override with the _method query string parameter
 --
 -- * Accept header override with the _accept query string parameter
-toWaiApp :: YesodDispatch site => site -> IO W.Application
+toWaiApp :: (YesodDispatch site) => site -> IO W.Application
 toWaiApp site = do
-    logger <- makeLogger site
-    toWaiAppLogger logger site
+  logger <- makeLogger site
+  toWaiAppLogger logger site
 
-toWaiAppLogger :: YesodDispatch site => Logger -> site -> IO W.Application
+toWaiAppLogger :: (YesodDispatch site) => Logger -> site -> IO W.Application
 toWaiAppLogger logger site = do
-    sb <- makeSessionBackend site
-    getMaxExpires <- getGetMaxExpires
-    let yre = YesodRunnerEnv
-                { yreLogger = logger
-                , yreSite = site
-                , yreSessionBackend = sb
-                , yreGen = defaultGen
-                , yreGetMaxExpires = getMaxExpires
-                }
-    messageLoggerSource
-        site
-        logger
-        $(qLocation >>= liftLoc)
-        "yesod-core"
-        LevelInfo
-        (toLogStr ("Application launched" :: S.ByteString))
-    middleware <- mkDefaultMiddlewares logger
-    return $ middleware $ toWaiAppYre yre
+  sb <- makeSessionBackend site
+  getMaxExpires <- getGetMaxExpires
+  let yre =
+        YesodRunnerEnv
+          { yreLogger = logger
+          , yreSite = site
+          , yreSessionBackend = sb
+          , yreGen = defaultGen
+          , yreGetMaxExpires = getMaxExpires
+          }
+  messageLoggerSource
+    site
+    logger
+    $(qLocation >>= liftLoc)
+    "yesod-core"
+    LevelInfo
+    (toLogStr ("Application launched" :: S.ByteString))
+  middleware <- mkDefaultMiddlewares logger
+  return $ middleware $ toWaiAppYre yre
 
 -- | A convenience method to run an application using the Warp webserver on the
 -- specified port. Automatically calls 'toWaiApp'. Provides a default set of
@@ -223,65 +236,63 @@ toWaiAppLogger logger site = do
 -- directly.
 --
 -- Since 1.2.0
-warp :: YesodDispatch site => Int -> site -> IO ()
+warp :: (YesodDispatch site) => Int -> site -> IO ()
 warp port site = do
-    logger <- makeLogger site
-    toWaiAppLogger logger site >>= Network.Wai.Handler.Warp.runSettings (
-        Network.Wai.Handler.Warp.setPort port $
-        Network.Wai.Handler.Warp.setServerName serverValue $
-        Network.Wai.Handler.Warp.setOnException (\_ e ->
-                when (shouldLog' e) $
-                messageLoggerSource
-                    site
-                    logger
-                    $(qLocation >>= liftLoc)
-                    "yesod-core"
-                    LevelError
-                    (toLogStr $ "Exception from Warp: " ++ show e))
-        Network.Wai.Handler.Warp.defaultSettings)
-  where
-    shouldLog' = Network.Wai.Handler.Warp.defaultShouldDisplayException
+  logger <- makeLogger site
+  toWaiAppLogger logger site
+    >>= Network.Wai.Handler.Warp.runSettings
+      ( Network.Wai.Handler.Warp.setPort port $
+          Network.Wai.Handler.Warp.setServerName serverValue $
+            Network.Wai.Handler.Warp.setOnException
+              ( \_ e ->
+                  when (shouldLog' e) $
+                    messageLoggerSource
+                      site
+                      logger
+                      $(qLocation >>= liftLoc)
+                      "yesod-core"
+                      LevelError
+                      (toLogStr $ "Exception from Warp: " ++ show e)
+              )
+              Network.Wai.Handler.Warp.defaultSettings
+      )
+ where
+  shouldLog' = Network.Wai.Handler.Warp.defaultShouldDisplayException
 
 serverValue :: S8.ByteString
-serverValue = S8.pack $ concat
-    [ "Warp/"
-    , Network.Wai.Handler.Warp.warpVersion
-    , " + Yesod/"
-    , showVersion Paths_yesod_core.version
-    , " (core)"
-    ]
+serverValue =
+  S8.pack $
+    concat
+      [ "Warp/"
+      , Network.Wai.Handler.Warp.warpVersion
+      , " + Yesod/"
+      , showVersion Paths_yesod_core.version
+      , " (core)"
+      ]
 
 -- | A default set of middlewares.
 --
 -- Since 1.2.0
 mkDefaultMiddlewares :: Logger -> IO W.Middleware
 mkDefaultMiddlewares logger = do
-    logWare <- mkRequestLogger
-#if MIN_VERSION_wai_extra(3,1,8)
-        defaultRequestLoggerSettings
-#else
-        def
-#endif
+  logWare <-
+    mkRequestLogger
+      defaultRequestLoggerSettings
         { destination = Network.Wai.Middleware.RequestLogger.Logger $ loggerSet logger
         , outputFormat = Apache FromSocket
         }
-    return $ logWare . defaultMiddlewaresNoLogging
+  return $ logWare . defaultMiddlewaresNoLogging
 
 -- | All of the default middlewares, excluding logging.
 --
 -- Since 1.2.12
 defaultMiddlewaresNoLogging :: W.Middleware
 defaultMiddlewaresNoLogging = acceptOverride . autohead . gzip gzipSettings . methodOverride
-  where
-    gzipSettings =
-#if MIN_VERSION_wai_extra(3,1,14)
-        defaultGzipSettings
-#else
-        def
-#endif
+ where
+  gzipSettings = defaultGzipSettings
 
 -- | Deprecated synonym for 'warp'.
-warpDebug :: YesodDispatch site => Int -> site -> IO ()
+warpDebug :: (YesodDispatch site) => Int -> site -> IO ()
 warpDebug = warp
 {-# DEPRECATED warpDebug "Please use warp instead" #-}
 
@@ -292,22 +303,24 @@ warpDebug = warp
 -- Note that the exact behavior of this function may be modified slightly over
 -- time to work correctly with external tools, without a change to the type
 -- signature.
-warpEnv :: YesodDispatch site => site -> IO ()
+warpEnv :: (YesodDispatch site) => site -> IO ()
 warpEnv site = do
-    env <- getEnvironment
-    case lookup "PORT" env of
-        Nothing -> error "warpEnv: no PORT environment variable found"
-        Just portS ->
-            case readMaybe portS of
-                Nothing -> error $ "warpEnv: invalid PORT environment variable: " ++ show portS
-                Just port -> warp port site
+  env <- getEnvironment
+  case lookup "PORT" env of
+    Nothing -> error "warpEnv: no PORT environment variable found"
+    Just portS ->
+      case readMaybe portS of
+        Nothing -> error $ "warpEnv: invalid PORT environment variable: " ++ show portS
+        Just port -> warp port site
 
 -- | Default constructor for 'yreGetMaxExpires' field. Low level
 -- function for simple manual construction of 'YesodRunnerEnv'.
 --
 -- @since 1.4.29
 getGetMaxExpires :: IO (IO Text)
-getGetMaxExpires = mkAutoUpdate defaultUpdateSettings
-  { updateAction = getCurrentMaxExpiresRFC1123
-  , updateFreq = 24 * 60 * 60 * 1000000 -- Update once per day
-  }
+getGetMaxExpires =
+  mkAutoUpdate
+    defaultUpdateSettings
+      { updateAction = getCurrentMaxExpiresRFC1123
+      , updateFreq = 24 * 60 * 60 * 1000000 -- Update once per day
+      }

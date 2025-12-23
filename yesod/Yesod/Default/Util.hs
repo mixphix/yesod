@@ -1,70 +1,78 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | Various utilities used in the scaffolded site.
 module Yesod.Default.Util
-    ( addStaticContentExternal
-    , globFile
-    , globFilePackage
-    , widgetFileNoReload
-    , widgetFileReload
-    , TemplateLanguage (..)
-    , defaultTemplateLanguages
-    , WidgetFileSettings
-    , wfsLanguages
-    , wfsHamletSettings
-    ) where
+  ( addStaticContentExternal
+  , globFile
+  , globFilePackage
+  , widgetFileNoReload
+  , widgetFileReload
+  , TemplateLanguage (..)
+  , defaultTemplateLanguages
+  , WidgetFileSettings
+  , wfsLanguages
+  , wfsHamletSettings
+  ) where
 
-import qualified Data.ByteString.Lazy as L
-import Data.FileEmbed (makeRelativeToProject)
-import Data.Text (Text, pack, unpack)
-import Yesod.Core -- purposely using complete import so that Haddock will see addStaticContent
-import Control.Monad (when, unless)
+-- purposely using complete import so that Haddock will see addStaticContent
+
 import Conduit
-import System.Directory (doesFileExist, createDirectoryIfMissing)
-import Language.Haskell.TH.Syntax
-#if MIN_VERSION_template_haskell(2,19,0)
-    hiding (makeRelativeToProject)
-#endif
-import Text.Lucius (luciusFile, luciusFileReload)
-import Text.Julius (juliusFile, juliusFileReload)
+import Control.Monad (unless, when)
+import qualified Data.ByteString.Lazy as L
+import Data.Default.Class (Default (def))
+import Data.Either (fromRight)
+import Data.FileEmbed (makeRelativeToProject)
+import Data.Maybe (catMaybes)
+import Data.Text (Text, pack, unpack)
+import Language.Haskell.TH.Syntax hiding
+  ( makeRelativeToProject
+  )
+import System.Directory (createDirectoryIfMissing, doesFileExist)
 import Text.Cassius (cassiusFile, cassiusFileReload)
 import Text.Hamlet (HamletSettings, defaultHamletSettings)
-import Data.Maybe (catMaybes)
-import Data.Default.Class (Default (def))
+import Text.Julius (juliusFile, juliusFileReload)
+import Text.Lucius (luciusFile, luciusFileReload)
+import Yesod.Core
 
 -- | An implementation of 'addStaticContent' which stores the contents in an
 -- external file. Files are created in the given static folder with names based
 -- on a hash of their content. This allows expiration dates to be set far in
 -- the future without worry of users receiving stale content.
-addStaticContentExternal
-    :: (L.ByteString -> Either a L.ByteString) -- ^ javascript minifier
-    -> (L.ByteString -> String) -- ^ hash function to determine file name
-    -> FilePath -- ^ location of static directory. files will be placed within a "tmp" subfolder
-    -> ([Text] -> Route master) -- ^ route constructor, taking a list of pieces
-    -> Text -- ^ filename extension
-    -> Text -- ^ mime type
-    -> L.ByteString -- ^ file contents
-    -> HandlerFor master (Maybe (Either Text (Route master, [(Text, Text)])))
+addStaticContentExternal ::
+  -- | javascript minifier
+  (L.ByteString -> Either a L.ByteString) ->
+  -- | hash function to determine file name
+  (L.ByteString -> String) ->
+  -- | location of static directory. files will be placed within a "tmp" subfolder
+  FilePath ->
+  -- | route constructor, taking a list of pieces
+  ([Text] -> Route master) ->
+  -- | filename extension
+  Text ->
+  -- | mime type
+  Text ->
+  -- | file contents
+  L.ByteString ->
+  HandlerFor master (Maybe (Either Text (Route master, [(Text, Text)])))
 addStaticContentExternal minify hash staticDir toRoute ext' _ content = do
-    liftIO $ createDirectoryIfMissing True statictmp
-    exists <- liftIO $ doesFileExist fn'
-    unless exists $ withSinkFileCautious fn' $ \sink ->
-        runConduit $ sourceLazy content' .| sink
-    return $ Just $ Right (toRoute ["tmp", pack fn], [])
-  where
-    fn, statictmp, fn' :: FilePath
-    -- by basing the hash off of the un-minified content, we avoid a costly
-    -- minification if the file already exists
-    fn = hash content ++ '.' : unpack ext'
-    statictmp = staticDir ++ "/tmp/"
-    fn' = statictmp ++ fn
+  liftIO $ createDirectoryIfMissing True statictmp
+  exists <- liftIO $ doesFileExist fn'
+  unless exists $ withSinkFileCautious fn' $ \sink ->
+    runConduit $ sourceLazy content' .| sink
+  return $ Just $ Right (toRoute ["tmp", pack fn], [])
+ where
+  fn, statictmp, fn' :: FilePath
+  -- by basing the hash off of the un-minified content, we avoid a costly
+  -- minification if the file already exists
+  fn = hash content ++ '.' : unpack ext'
+  statictmp = staticDir ++ "/tmp/"
+  fn' = statictmp ++ fn
 
-    content' :: L.ByteString
-    content'
-        | ext' == "js" = either (const content) id $ minify content
-        | otherwise = content
+  content' :: L.ByteString
+  content'
+    | ext' == "js" = fromRight content $ minify content
+    | otherwise = content
 
 -- | expects a file extension for each type, e.g: hamlet lucius julius
 globFile :: String -> String -> FilePath
@@ -76,78 +84,90 @@ globFilePackage :: String -> String -> Q FilePath
 globFilePackage = (makeRelativeToProject <$>) . globFile
 
 data TemplateLanguage = TemplateLanguage
-    { tlRequiresToWidget :: Bool
-    , tlExtension :: String
-    , tlNoReload :: FilePath -> Q Exp
-    , tlReload :: FilePath -> Q Exp
-    }
+  { tlRequiresToWidget :: Bool
+  , tlExtension :: String
+  , tlNoReload :: FilePath -> Q Exp
+  , tlReload :: FilePath -> Q Exp
+  }
 
 defaultTemplateLanguages :: HamletSettings -> [TemplateLanguage]
 defaultTemplateLanguages hset =
-    [ TemplateLanguage False "hamlet"  whamletFile' whamletFile'
-    , TemplateLanguage True  "cassius" cassiusFile  cassiusFileReload
-    , TemplateLanguage True  "julius"  juliusFile   juliusFileReload
-    , TemplateLanguage True  "lucius"  luciusFile   luciusFileReload
-    ]
-  where
-    whamletFile' = whamletFileWithSettings hset
+  [ TemplateLanguage False "hamlet" whamletFile' whamletFile'
+  , TemplateLanguage True "cassius" cassiusFile cassiusFileReload
+  , TemplateLanguage True "julius" juliusFile juliusFileReload
+  , TemplateLanguage True "lucius" luciusFile luciusFileReload
+  ]
+ where
+  whamletFile' = whamletFileWithSettings hset
 
 data WidgetFileSettings = WidgetFileSettings
-    { wfsLanguages :: HamletSettings -> [TemplateLanguage]
-    , wfsHamletSettings :: HamletSettings
-    }
+  { wfsLanguages :: HamletSettings -> [TemplateLanguage]
+  , wfsHamletSettings :: HamletSettings
+  }
 
 instance Default WidgetFileSettings where
-    def = WidgetFileSettings defaultTemplateLanguages defaultHamletSettings
+  def = WidgetFileSettings defaultTemplateLanguages defaultHamletSettings
 
 widgetFileNoReload :: WidgetFileSettings -> FilePath -> Q Exp
-widgetFileNoReload wfs x = combine "widgetFileNoReload" x False $ wfsLanguages wfs $ wfsHamletSettings wfs
+widgetFileNoReload wfs x =
+  combine "widgetFileNoReload" x False $ wfsLanguages wfs $ wfsHamletSettings wfs
 
 widgetFileReload :: WidgetFileSettings -> FilePath -> Q Exp
 widgetFileReload wfs x = combine "widgetFileReload" x True $ wfsLanguages wfs $ wfsHamletSettings wfs
 
 combine :: String -> String -> Bool -> [TemplateLanguage] -> Q Exp
 combine func file isReload tls = do
-    mexps <- qmexps
-    case catMaybes mexps of
-        [] -> error $ concat
-            [ "Called "
-            , func
-            , " on "
-            , show file
-            , ", but no templates were found."
-            ]
-#if MIN_VERSION_template_haskell(2,17,0)
-        exps -> return $ DoE Nothing $ map NoBindS exps
-#else
-        exps -> return $ DoE $ map NoBindS exps
-#endif
-  where
-    qmexps :: Q [Maybe Exp]
-    qmexps = mapM go tls
+  mexps <- qmexps
+  case catMaybes mexps of
+    [] ->
+      error $
+        concat
+          [ "Called "
+          , func
+          , " on "
+          , show file
+          , ", but no templates were found."
+          ]
+    exps -> return $ DoE Nothing $ map NoBindS exps
+ where
+  qmexps :: Q [Maybe Exp]
+  qmexps = mapM go tls
 
-    go :: TemplateLanguage -> Q (Maybe Exp)
-    go tl = whenExists file (tlRequiresToWidget tl) (tlExtension tl) ((if isReload then tlReload else tlNoReload) tl)
+  go :: TemplateLanguage -> Q (Maybe Exp)
+  go tl =
+    whenExists
+      file
+      (tlRequiresToWidget tl)
+      (tlExtension tl)
+      ((if isReload then tlReload else tlNoReload) tl)
 
-whenExists :: String
-           -> Bool -- ^ requires toWidget wrap
-           -> String -> (FilePath -> Q Exp) -> Q (Maybe Exp)
+whenExists ::
+  String ->
+  -- | requires toWidget wrap
+  Bool ->
+  String ->
+  (FilePath -> Q Exp) ->
+  Q (Maybe Exp)
 whenExists = warnUnlessExists False
 
-warnUnlessExists :: Bool
-                 -> String
-                 -> Bool -- ^ requires toWidget wrap
-                 -> String -> (FilePath -> Q Exp) -> Q (Maybe Exp)
+warnUnlessExists ::
+  Bool ->
+  String ->
+  -- | requires toWidget wrap
+  Bool ->
+  String ->
+  (FilePath -> Q Exp) ->
+  Q (Maybe Exp)
 warnUnlessExists shouldWarn x wrap glob f = do
-    fn <- globFilePackage glob x
-    e <- qRunIO $ doesFileExist fn
-    when (shouldWarn && not e) $ qRunIO $ putStrLn $ "widget file not found: " ++ fn
-    if e
+  fn <- globFilePackage glob x
+  e <- qRunIO $ doesFileExist fn
+  when (shouldWarn && not e) $ qRunIO $ putStrLn $ "widget file not found: " ++ fn
+  if e
+    then do
+      ex <- f fn
+      if wrap
         then do
-            ex <- f fn
-            if wrap
-                then do
-                    tw <- [|toWidget|]
-                    return $ Just $ tw `AppE` ex
-                else return $ Just ex
-        else return Nothing
+          tw <- [|toWidget|]
+          return $ Just $ tw `AppE` ex
+        else return $ Just ex
+    else return Nothing

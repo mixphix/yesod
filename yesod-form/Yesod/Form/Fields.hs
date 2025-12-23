@@ -14,172 +14,210 @@
 --
 -- See the Yesod book <http://www.yesodweb.com/book/forms chapter on forms> for a broader overview of forms in Yesod.
 module Yesod.Form.Fields
-    ( -- * i18n
-      FormMessage (..)
-    , defaultFormMessage
-      -- * Fields
-    , textField
-    , passwordField
-    , textareaField
-    , hiddenField
-    , intField
-    , dayField
-    , timeField
-    , timeFieldTypeTime
-    , timeFieldTypeText
-    , htmlField
-    , emailField
-    , multiEmailField
-    , searchField
-    , AutoFocus
-    , urlField
-    , doubleField
-    , parseDate
-    , parseTime
-    , Textarea (..)
-    , boolField
-    , checkBoxField
-    , fileField
-      -- * File 'AForm's
-    , fileAFormReq
-    , fileAFormOpt
-      -- * Options
-      -- $optionsOverview
-    , selectFieldHelper
-    , selectField
-    , selectFieldList
-    , selectFieldListGrouped
-    , radioField
-    , radioField'
-    , radioFieldList
-    , withRadioField
-    , checkboxesField
-    , checkboxesField'
-    , checkboxesFieldList
-    , multiSelectField
-    , multiSelectFieldList
-    , Option (..)
-    , OptionList (..)
-    , mkOptionList
-    , mkOptionListGrouped
-    , optionsPersist
-    , optionsPersistKey
-    , optionsPairs
-    , optionsPairsGrouped
-    , optionsEnum
-    , colorField
-    , datetimeLocalField
-    ) where
+  ( -- * i18n
+    FormMessage (..)
+  , defaultFormMessage
 
-import Yesod.Form.Types
-import Yesod.Form.I18n.English
-import Yesod.Form.Functions (parseHelper)
-import Yesod.Core
+    -- * Fields
+  , textField
+  , passwordField
+  , textareaField
+  , hiddenField
+  , intField
+  , dayField
+  , timeField
+  , timeFieldTypeTime
+  , timeFieldTypeText
+  , htmlField
+  , emailField
+  , multiEmailField
+  , searchField
+  , AutoFocus
+  , urlField
+  , doubleField
+  , parseDate
+  , parseTime
+  , Textarea (..)
+  , boolField
+  , checkBoxField
+  , fileField
+
+    -- * File 'AForm's
+  , fileAFormReq
+  , fileAFormOpt
+
+    -- * Options
+    -- $optionsOverview
+  , selectFieldHelper
+  , selectField
+  , selectFieldList
+  , selectFieldListGrouped
+  , radioField
+  , radioField'
+  , radioFieldList
+  , withRadioField
+  , checkboxesField
+  , checkboxesField'
+  , checkboxesFieldList
+  , multiSelectField
+  , multiSelectFieldList
+  , Option (..)
+  , OptionList (..)
+  , mkOptionList
+  , mkOptionListGrouped
+  , optionsPersist
+  , optionsPersistKey
+  , optionsPairs
+  , optionsPairsGrouped
+  , optionsEnum
+  , colorField
+  , datetimeLocalField
+  ) where
+
 import Text.Blaze (ToMarkup (toMarkup), unsafeByteString)
+import Yesod.Core
+import Yesod.Form.Functions (parseHelper)
+import Yesod.Form.I18n.English
+import Yesod.Form.Types
 #define ToHtml ToMarkup
 #define toHtml toMarkup
 #define preEscapedText preEscapedToMarkup
-import Data.Time (Day, TimeOfDay(..), LocalTime (LocalTime))
-import qualified Text.Email.Validate as Email
-import Data.Text.Encoding (encodeUtf8, decodeUtf8With)
+import Data.Text.Encoding (decodeUtf8With, encodeUtf8)
 import Data.Text.Encoding.Error (lenientDecode)
-import Network.URI (parseURI)
+import Data.Time (Day, LocalTime (LocalTime), TimeOfDay (..))
 import Database.Persist.Sql (PersistField, PersistFieldSql (..))
+import Network.URI (parseURI)
+import qualified Text.Email.Validate as Email
 #if MIN_VERSION_persistent(2,5,0)
 import Database.Persist (Entity (..), SqlType (SqlString), PersistRecordBackend, PersistQueryRead)
 #else
 import Database.Persist (Entity (..), SqlType (SqlString), PersistEntity, PersistQuery, PersistEntityBackend)
 #endif
-import Text.HTML.SanitizeXSS (sanitizeBalance)
-import Control.Monad (when, unless, forM_)
+import Control.Monad (forM_, unless, when)
 import Data.Either (partitionEithers)
-import Data.Maybe (listToMaybe, fromMaybe)
+import Data.Maybe (fromMaybe, listToMaybe)
+import Text.HTML.SanitizeXSS (sanitizeBalance)
 
+import Blaze.ByteString.Builder (toLazyByteString, writeByteString)
 import qualified Blaze.ByteString.Builder.Html.Utf8 as B
-import Blaze.ByteString.Builder (writeByteString, toLazyByteString)
 import Blaze.ByteString.Builder.Internal.Write (fromWriteList)
 
-import Text.Blaze.Html.Renderer.String (renderHtml)
 import qualified Data.ByteString as S
 import qualified Data.ByteString.Lazy as L
-import Data.Text as T ( Text, append, concat, cons, head
-                      , intercalate, isPrefixOf, null, unpack, pack
-                      , split, splitOn
-                      )
+import Data.Text as T
+  ( Text
+  , append
+  , concat
+  , cons
+  , head
+  , intercalate
+  , isPrefixOf
+  , null
+  , pack
+  , split
+  , splitOn
+  , unpack
+  )
 import qualified Data.Text as T (drop, dropWhile)
 import qualified Data.Text.Read
+import Text.Blaze.Html.Renderer.String (renderHtml)
 
-import qualified Data.Map as Map
-import Yesod.Persist (selectList, Filter, SelectOpt, Key)
 import Control.Arrow ((&&&))
+import qualified Data.Map as Map
+import Yesod.Persist (Filter, Key, SelectOpt, selectList)
 
 import Control.Applicative ((<|>))
 
-import Data.Attoparsec.Text (Parser, char, string, digit, skipSpace, endOfInput, parseOnly)
+import Data.Attoparsec.Text
+  ( Parser
+  , char
+  , digit
+  , endOfInput
+  , parseOnly
+  , skipSpace
+  , string
+  )
 
 import Yesod.Persist.Core
 
 import Data.String (IsString)
 
-
 import Data.Char (isHexDigit)
 
-{-# DEPRECATED radioField "This function seems to have a bug (label could not be found with byLabel algorithm)" #-}
-{-# DEPRECATED checkboxesField "This function seems to have a bug (label could not be found with byLabel algorithm)" #-}
+{-# DEPRECATED
+  radioField
+  "This function seems to have a bug (label could not be found with byLabel algorithm)"
+  #-}
+{-# DEPRECATED
+  checkboxesField
+  "This function seems to have a bug (label could not be found with byLabel algorithm)"
+  #-}
 
 defaultFormMessage :: FormMessage -> Text
 defaultFormMessage = englishFormMessage
 
 -- | Creates a input with @type="number"@ and @step=1@.
-intField :: (Monad m, Integral i, RenderMessage (HandlerSite m) FormMessage) => Field m i
-intField = Field
+intField ::
+  (Monad m, Integral i, RenderMessage (HandlerSite m) FormMessage) => Field m i
+intField =
+  Field
     { fieldParse = parseHelper $ \s ->
         case Data.Text.Read.signed Data.Text.Read.decimal s of
-            Right (a, "") -> Right a
-            _ -> Left $ MsgInvalidInteger s
-
-    , fieldView = \theId name attrs val isReq -> toWidget [hamlet|
+          Right (a, "") -> Right a
+          _ -> Left $ MsgInvalidInteger s
+    , fieldView = \theId name attrs val isReq ->
+        toWidget
+          [hamlet|
 $newline never
 <input id="#{theId}" name="#{name}" *{attrs} type="number" step=1 :isReq:required="" value="#{showVal val}">
 |]
     , fieldEnctype = UrlEncoded
     }
-  where
-    showVal = either id (pack . showI)
-    showI x = show (fromIntegral x :: Integer)
+ where
+  showVal = either id (pack . showI)
+  showI x = show (fromIntegral x :: Integer)
 
 -- | Creates a input with @type="number"@ and @step=any@.
-doubleField :: Monad m => RenderMessage (HandlerSite m) FormMessage => Field m Double
-doubleField = Field
+doubleField ::
+  (Monad m) => (RenderMessage (HandlerSite m) FormMessage) => Field m Double
+doubleField =
+  Field
     { fieldParse = parseHelper $ \s ->
         case Data.Text.Read.double (prependZero s) of
-            Right (a, "") -> Right a
-            _ -> Left $ MsgInvalidNumber s
-
-    , fieldView = \theId name attrs val isReq -> toWidget [hamlet|
+          Right (a, "") -> Right a
+          _ -> Left $ MsgInvalidNumber s
+    , fieldView = \theId name attrs val isReq ->
+        toWidget
+          [hamlet|
 $newline never
 <input id="#{theId}" name="#{name}" *{attrs} type="number" step=any :isReq:required="" value="#{showVal val}">
 |]
     , fieldEnctype = UrlEncoded
     }
-  where showVal = either id (pack . show)
+ where
+  showVal = either id (pack . show)
 
 -- | Creates an input with @type="date"@, validating the input using the 'parseDate' function.
 --
 -- Add the @time@ package and import the "Data.Time.Calendar" module to use this function.
-dayField :: Monad m => RenderMessage (HandlerSite m) FormMessage => Field m Day
-dayField = Field
+dayField :: (Monad m) => (RenderMessage (HandlerSite m) FormMessage) => Field m Day
+dayField =
+  Field
     { fieldParse = parseHelper $ parseDate . unpack
-    , fieldView = \theId name attrs val isReq -> toWidget [hamlet|
+    , fieldView = \theId name attrs val isReq ->
+        toWidget
+          [hamlet|
 $newline never
 <input id="#{theId}" name="#{name}" *{attrs} type="date" :isReq:required="" value="#{showVal val}">
 |]
     , fieldEnctype = UrlEncoded
     }
-  where showVal = either id (pack . show)
+ where
+  showVal = either id (pack . show)
 
 -- | An alias for 'timeFieldTypeTime'.
-timeField :: Monad m => RenderMessage (HandlerSite m) FormMessage => Field m TimeOfDay
+timeField ::
+  (Monad m) => (RenderMessage (HandlerSite m) FormMessage) => Field m TimeOfDay
 timeField = timeFieldTypeTime
 
 -- | Creates an input with @type="time"@. <http://caniuse.com/#search=time%20input%20type Browsers not supporting this type> will fallback to a text field, and Yesod will parse the time as described in 'timeFieldTypeText'.
@@ -187,7 +225,8 @@ timeField = timeFieldTypeTime
 -- Add the @time@ package and import the "Data.Time.LocalTime" module to use this function.
 --
 -- @since 1.4.2
-timeFieldTypeTime :: Monad m => RenderMessage (HandlerSite m) FormMessage => Field m TimeOfDay
+timeFieldTypeTime ::
+  (Monad m) => (RenderMessage (HandlerSite m) FormMessage) => Field m TimeOfDay
 timeFieldTypeTime = timeFieldOfType "time"
 
 -- | Creates an input with @type="text"@, parsing the time from an [H]H:MM[:SS] format, with an optional AM or PM (if not given, AM is assumed for compatibility with the 24 hour clock system).
@@ -197,66 +236,83 @@ timeFieldTypeTime = timeFieldOfType "time"
 -- Add the @time@ package and import the "Data.Time.LocalTime" module to use this function.
 --
 -- @since 1.4.2
-timeFieldTypeText :: Monad m => RenderMessage (HandlerSite m) FormMessage => Field m TimeOfDay
+timeFieldTypeText ::
+  (Monad m) => (RenderMessage (HandlerSite m) FormMessage) => Field m TimeOfDay
 timeFieldTypeText = timeFieldOfType "text"
 
-timeFieldOfType :: Monad m => RenderMessage (HandlerSite m) FormMessage => Text -> Field m TimeOfDay
-timeFieldOfType inputType = Field
+timeFieldOfType ::
+  (Monad m) =>
+  (RenderMessage (HandlerSite m) FormMessage) =>
+  Text -> Field m TimeOfDay
+timeFieldOfType inputType =
+  Field
     { fieldParse = parseHelper parseTime
-    , fieldView = \theId name attrs val isReq -> toWidget [hamlet|
+    , fieldView = \theId name attrs val isReq ->
+        toWidget
+          [hamlet|
 $newline never
 <input id="#{theId}" name="#{name}" *{attrs} type="#{inputType}" :isReq:required="" value="#{showVal val}">
 |]
     , fieldEnctype = UrlEncoded
     }
-  where
-    showVal = either id (pack . show . roundFullSeconds)
-    roundFullSeconds tod =
-        TimeOfDay (todHour tod) (todMin tod) fullSec
-      where
-        fullSec = fromInteger $ floor $ todSec tod
+ where
+  showVal = either id (pack . show . roundFullSeconds)
+  roundFullSeconds tod =
+    TimeOfDay (todHour tod) (todMin tod) fullSec
+   where
+    fullSec = fromInteger $ floor $ todSec tod
 
 -- | Creates a @\<textarea>@ tag whose input is sanitized to prevent XSS attacks and is validated for having balanced tags.
-htmlField :: Monad m => RenderMessage (HandlerSite m) FormMessage => Field m Html
-htmlField = Field
+htmlField ::
+  (Monad m) => (RenderMessage (HandlerSite m) FormMessage) => Field m Html
+htmlField =
+  Field
     { fieldParse = parseHelper $ Right . preEscapedText . sanitizeBalance
-    , fieldView = \theId name attrs val isReq -> toWidget [hamlet|
+    , fieldView = \theId name attrs val isReq ->
+        toWidget
+          [hamlet|
 $newline never
 <textarea :isReq:required="" id="#{theId}" name="#{name}" *{attrs}>#{showVal val}
 |]
     , fieldEnctype = UrlEncoded
     }
-  where showVal = either id (pack . renderHtml)
+ where
+  showVal = either id (pack . renderHtml)
 
 -- | A newtype wrapper around a 'Text' whose 'ToMarkup' instance converts newlines to HTML @\<br>@ tags.
 --
 -- (When text is entered into a @\<textarea>@, newline characters are used to separate lines.
 -- If this text is then placed verbatim into HTML, the lines won't be separated, thus the need for replacing with @\<br>@ tags).
 -- If you don't need this functionality, simply use 'unTextarea' to access the raw text.
-newtype Textarea = Textarea { unTextarea :: Text }
-    deriving (Show, Read, Eq, PersistField, Ord, ToJSON, FromJSON, IsString)
+newtype Textarea = Textarea {unTextarea :: Text}
+  deriving (Show, Read, Eq, PersistField, Ord, ToJSON, FromJSON, IsString)
+
 instance PersistFieldSql Textarea where
-    sqlType _ = SqlString
+  sqlType _ = SqlString
 instance ToHtml Textarea where
-    toHtml =
-        unsafeByteString
-        . S.concat
-        . L.toChunks
-        . toLazyByteString
-        . fromWriteList writeHtmlEscapedChar
-        . unpack
-        . unTextarea
-      where
-        -- Taken from blaze-builder and modified with newline handling.
-        writeHtmlEscapedChar '\r' = mempty
-        writeHtmlEscapedChar '\n' = writeByteString "<br>"
-        writeHtmlEscapedChar c    = B.writeHtmlEscapedChar c
+  toHtml =
+    unsafeByteString
+      . S.concat
+      . L.toChunks
+      . toLazyByteString
+      . fromWriteList writeHtmlEscapedChar
+      . unpack
+      . unTextarea
+   where
+    -- Taken from blaze-builder and modified with newline handling.
+    writeHtmlEscapedChar '\r' = mempty
+    writeHtmlEscapedChar '\n' = writeByteString "<br>"
+    writeHtmlEscapedChar c = B.writeHtmlEscapedChar c
 
 -- | Creates a @\<textarea>@ tag whose returned value is wrapped in a 'Textarea'; see 'Textarea' for details.
-textareaField :: Monad m => RenderMessage (HandlerSite m) FormMessage => Field m Textarea
-textareaField = Field
+textareaField ::
+  (Monad m) => (RenderMessage (HandlerSite m) FormMessage) => Field m Textarea
+textareaField =
+  Field
     { fieldParse = parseHelper $ Right . Textarea
-    , fieldView = \theId name attrs val isReq -> toWidget [hamlet|
+    , fieldView = \theId name attrs val isReq ->
+        toWidget
+          [hamlet|
 $newline never
 <textarea id="#{theId}" name="#{name}" :isReq:required="" *{attrs}>#{either id unTextarea val}
 |]
@@ -264,11 +320,15 @@ $newline never
     }
 
 -- | Creates an input with @type="hidden"@; you can use this to store information in a form that users shouldn't see (for example, Yesod stores CSRF tokens in a hidden field).
-hiddenField :: (Monad m, PathPiece p, RenderMessage (HandlerSite m) FormMessage)
-            => Field m p
-hiddenField = Field
+hiddenField ::
+  (Monad m, PathPiece p, RenderMessage (HandlerSite m) FormMessage) =>
+  Field m p
+hiddenField =
+  Field
     { fieldParse = parseHelper $ maybe (Left MsgValueRequired) Right . fromPathPiece
-    , fieldView = \theId name attrs val _isReq -> toWidget [hamlet|
+    , fieldView = \theId name attrs val _isReq ->
+        toWidget
+          [hamlet|
 $newline never
 <input type="hidden" id="#{theId}" name="#{name}" *{attrs} value="#{either id toPathPiece val}">
 |]
@@ -276,8 +336,10 @@ $newline never
     }
 
 -- | Creates a input with @type="text"@.
-textField :: Monad m => RenderMessage (HandlerSite m) FormMessage => Field m Text
-textField = Field
+textField ::
+  (Monad m) => (RenderMessage (HandlerSite m) FormMessage) => Field m Text
+textField =
+  Field
     { fieldParse = parseHelper $ Right
     , fieldView = \theId name attrs val isReq ->
         [whamlet|
@@ -286,88 +348,103 @@ $newline never
 |]
     , fieldEnctype = UrlEncoded
     }
+
 -- | Creates an input with @type="password"@.
-passwordField :: Monad m => RenderMessage (HandlerSite m) FormMessage => Field m Text
-passwordField = Field
+passwordField ::
+  (Monad m) => (RenderMessage (HandlerSite m) FormMessage) => Field m Text
+passwordField =
+  Field
     { fieldParse = parseHelper $ Right
-    , fieldView = \theId name attrs _ isReq -> toWidget [hamlet|
+    , fieldView = \theId name attrs _ isReq ->
+        toWidget
+          [hamlet|
 $newline never
 <input id="#{theId}" name="#{name}" *{attrs} type="password" :isReq:required="">
 |]
     , fieldEnctype = UrlEncoded
     }
 
-readMay :: Read a => String -> Maybe a
+readMay :: (Read a) => String -> Maybe a
 readMay s = case filter (Prelude.null . snd) $ reads s of
-                (x, _):_ -> Just x
-                [] -> Nothing
+  (x, _) : _ -> Just x
+  [] -> Nothing
 
 -- | Parses a 'Day' from a 'String'.
 parseDate :: String -> Either FormMessage Day
-parseDate = maybe (Left MsgInvalidDay) Right
-              . readMay . replace '/' '-'
+parseDate =
+  maybe (Left MsgInvalidDay) Right
+    . readMay
+    . replace '/' '-'
 
 -- | Replaces all instances of a value in a list by another value.
 -- from http://hackage.haskell.org/packages/archive/cgi/3001.1.7.1/doc/html/src/Network-CGI-Protocol.html#replace
-replace :: Eq a => a -> a -> [a] -> [a]
+replace :: (Eq a) => a -> a -> [a] -> [a]
 replace x y = map (\z -> if z == x then y else z)
 
 parseTime :: Text -> Either FormMessage TimeOfDay
-parseTime = either (Left . fromMaybe MsgInvalidTimeFormat . readMay . drop 2 . dropWhile (/= ':')) Right . parseOnly timeParser
+parseTime =
+  either
+    (Left . fromMaybe MsgInvalidTimeFormat . readMay . drop 2 . dropWhile (/= ':'))
+    Right
+    . parseOnly timeParser
 
 timeParser :: Parser TimeOfDay
 timeParser = do
-    skipSpace
-    h <- hour
-    _ <- char ':'
-    m <- minsec MsgInvalidMinute
-    hasSec <- (char ':' >> return True) <|> return False
-    s <- if hasSec then minsec MsgInvalidSecond else return 0
-    skipSpace
-    isPM <-
-        (string "am" >> return (Just False)) <|>
-        (string "AM" >> return (Just False)) <|>
-        (string "pm" >> return (Just True)) <|>
-        (string "PM" >> return (Just True)) <|>
-        return Nothing
-    h' <-
-        case isPM of
-            Nothing -> return h
-            Just x
-                | h <= 0 || h > 12 -> fail $ show $ MsgInvalidHour $ pack $ show h
-                | h == 12 -> return $ if x then 12 else 0
-                | otherwise -> return $ h + (if x then 12 else 0)
-    skipSpace
-    endOfInput
-    return $ TimeOfDay h' m s
-  where
-    hour = do
-        x <- digit
-        y <- (return <$> digit) <|> return []
-        let xy = x : y
-        let i = read xy
-        if i < 0 || i >= 24
-            then fail $ show $ MsgInvalidHour $ pack xy
-            else return i
-    minsec :: Num a => (Text -> FormMessage) -> Parser a
-    minsec msg = do
-        x <- digit
-        y <- digit <|> fail (show $ msg $ pack [x])
-        let xy = [x, y]
-        let i = read xy
-        if i < 0 || i >= 60
-            then fail $ show $ msg $ pack xy
-            else return $ fromIntegral (i :: Int)
+  skipSpace
+  h <- hour
+  _ <- char ':'
+  m <- minsec MsgInvalidMinute
+  hasSec <- (char ':' >> return True) <|> return False
+  s <- if hasSec then minsec MsgInvalidSecond else return 0
+  skipSpace
+  isPM <-
+    (string "am" >> return (Just False))
+      <|> (string "AM" >> return (Just False))
+      <|> (string "pm" >> return (Just True))
+      <|> (string "PM" >> return (Just True))
+      <|> return Nothing
+  h' <-
+    case isPM of
+      Nothing -> return h
+      Just x
+        | h <= 0 || h > 12 -> fail $ show $ MsgInvalidHour $ pack $ show h
+        | h == 12 -> return $ if x then 12 else 0
+        | otherwise -> return $ h + (if x then 12 else 0)
+  skipSpace
+  endOfInput
+  return $ TimeOfDay h' m s
+ where
+  hour = do
+    x <- digit
+    y <- (return <$> digit) <|> return []
+    let xy = x : y
+    let i = read xy
+    if i < 0 || i >= 24
+      then fail $ show $ MsgInvalidHour $ pack xy
+      else return i
+  minsec :: (Num a) => (Text -> FormMessage) -> Parser a
+  minsec msg = do
+    x <- digit
+    y <- digit <|> fail (show $ msg $ pack [x])
+    let xy = [x, y]
+    let i = read xy
+    if i < 0 || i >= 60
+      then fail $ show $ msg $ pack xy
+      else return $ fromIntegral (i :: Int)
 
 -- | Creates an input with @type="email"@. Yesod will validate the email's correctness according to RFC5322 and canonicalize it by removing comments and whitespace (see "Text.Email.Validate").
-emailField :: Monad m => RenderMessage (HandlerSite m) FormMessage => Field m Text
-emailField = Field
+emailField ::
+  (Monad m) => (RenderMessage (HandlerSite m) FormMessage) => Field m Text
+emailField =
+  Field
     { fieldParse = parseHelper $
         \s ->
-            case Email.canonicalizeEmail $ encodeUtf8 s of
-                Just e -> Right $ decodeUtf8With lenientDecode e
-                Nothing -> Left $ MsgInvalidEmail s
-    , fieldView = \theId name attrs val isReq -> toWidget [hamlet|
+          case Email.canonicalizeEmail $ encodeUtf8 s of
+            Just e -> Right $ decodeUtf8With lenientDecode e
+            Nothing -> Left $ MsgInvalidEmail s
+    , fieldView = \theId name attrs val isReq ->
+        toWidget
+          [hamlet|
 $newline never
 <input id="#{theId}" name="#{name}" *{attrs} type="email" :isReq:required="" value="#{either id id val}">
 |]
@@ -377,32 +454,41 @@ $newline never
 -- | Creates an input with @type="email"@ with the <http://w3c.github.io/html/sec-forms.html#the-multiple-attribute multiple> attribute; browsers might implement this as taking a comma separated list of emails. Each email address is validated as described in 'emailField'.
 --
 -- @since 1.3.7
-multiEmailField :: Monad m => RenderMessage (HandlerSite m) FormMessage => Field m [Text]
-multiEmailField = Field
+multiEmailField ::
+  (Monad m) => (RenderMessage (HandlerSite m) FormMessage) => Field m [Text]
+multiEmailField =
+  Field
     { fieldParse = parseHelper $
         \s ->
-            let addrs = map validate $ splitOn "," s
-            in case partitionEithers addrs of
+          let addrs = map validate $ splitOn "," s
+           in case partitionEithers addrs of
                 ([], good) -> Right good
                 (bad, _) -> Left $ MsgInvalidEmail $ cat bad
-    , fieldView = \theId name attrs val isReq -> toWidget [hamlet|
+    , fieldView = \theId name attrs val isReq ->
+        toWidget
+          [hamlet|
 $newline never
 <input id="#{theId}" name="#{name}" *{attrs} type="email" multiple :isReq:required="" value="#{either id cat val}">
 |]
     , fieldEnctype = UrlEncoded
     }
-    where
-        -- report offending address along with error
-        validate a = case Email.validate $ encodeUtf8 a of
-                        Left e -> Left $ T.concat [a, " (",  pack e, ")"]
-                        Right r -> Right $ emailToText r
-        cat = intercalate ", "
-        emailToText = decodeUtf8With lenientDecode . Email.toByteString
+ where
+  -- report offending address along with error
+  validate a = case Email.validate $ encodeUtf8 a of
+    Left e -> Left $ T.concat [a, " (", pack e, ")"]
+    Right r -> Right $ emailToText r
+  cat = intercalate ", "
+  emailToText = decodeUtf8With lenientDecode . Email.toByteString
 
 type AutoFocus = Bool
+
 -- | Creates an input with @type="search"@. For <http://caniuse.com/#search=autofocus browsers without autofocus support>, a JS fallback is used if @AutoFocus@ is true.
-searchField :: Monad m => RenderMessage (HandlerSite m) FormMessage => AutoFocus -> Field m Text
-searchField autoFocus = Field
+searchField ::
+  (Monad m) =>
+  (RenderMessage (HandlerSite m) FormMessage) =>
+  AutoFocus -> Field m Text
+searchField autoFocus =
+  Field
     { fieldParse = parseHelper Right
     , fieldView = \theId name attrs val isReq -> do
         [whamlet|
@@ -415,19 +501,22 @@ $newline never
 $newline never
 <script>if (!('autofocus' in document.createElement('input'))) {document.getElementById('#{theId}').focus();}
 |]
-          toWidget [cassius|
+          toWidget
+            [cassius|
             ##{theId}
               -webkit-appearance: textfield
             |]
     , fieldEnctype = UrlEncoded
     }
+
 -- | Creates an input with @type="url"@, validating the URL according to RFC3986.
-urlField :: Monad m => RenderMessage (HandlerSite m) FormMessage => Field m Text
-urlField = Field
+urlField :: (Monad m) => (RenderMessage (HandlerSite m) FormMessage) => Field m Text
+urlField =
+  Field
     { fieldParse = parseHelper $ \s ->
         case parseURI $ unpack s of
-            Nothing -> Left $ MsgInvalidUrl s
-            Just _ -> Right s
+          Nothing -> Left $ MsgInvalidUrl s
+          Just _ -> Right s
     , fieldView = \theId name attrs val isReq ->
         [whamlet|<input ##{theId} name=#{name} *{attrs} type=url :isReq:required value=#{either id id val}>|]
     , fieldEnctype = UrlEncoded
@@ -436,96 +525,120 @@ urlField = Field
 -- | Creates a @\<select>@ tag for selecting one option. Example usage:
 --
 -- > areq (selectFieldList [("Value 1" :: Text, "value1"),("Value 2", "value2")]) "Which value?" Nothing
-selectFieldList :: (Eq a, RenderMessage site FormMessage, RenderMessage site msg)
-                => [(msg, a)]
-                -> Field (HandlerFor site) a
+selectFieldList ::
+  (Eq a, RenderMessage site FormMessage, RenderMessage site msg) =>
+  [(msg, a)] ->
+  Field (HandlerFor site) a
 selectFieldList = selectField . optionsPairs
 
 -- | Creates a @\<select>@ tag with @\<optgroup>@s for selecting one option.
 --
 -- @since 1.7.0
-selectFieldListGrouped :: (Eq a, RenderMessage site FormMessage, RenderMessage site msg)
-                => [(msg, [(msg, a)])]
-                -> Field (HandlerFor site) a
+selectFieldListGrouped ::
+  (Eq a, RenderMessage site FormMessage, RenderMessage site msg) =>
+  [(msg, [(msg, a)])] ->
+  Field (HandlerFor site) a
 selectFieldListGrouped = selectField . optionsPairsGrouped
 
 -- | Creates a @\<select>@ tag with optional @\<optgroup>@s for selecting one option. Example usage:
 --
 -- > areq (selectField $ optionsPairs [(MsgValue1, "value1"),(MsgValue2, "value2")]) "Which value?" Nothing
-selectField :: (Eq a, RenderMessage site FormMessage)
-            => HandlerFor site (OptionList a)
-            -> Field (HandlerFor site) a
-selectField = selectFieldHelper
-    (\theId name attrs inside -> [whamlet|
+selectField ::
+  (Eq a, RenderMessage site FormMessage) =>
+  HandlerFor site (OptionList a) ->
+  Field (HandlerFor site) a
+selectField =
+  selectFieldHelper
+    ( \theId name attrs inside ->
+        [whamlet|
 $newline never
 <select ##{theId} name=#{name} *{attrs}>^{inside}
-|]) -- outside
-    (\_theId _name isSel -> [whamlet|
+|]
+    )
+    -- outside
+    ( \_theId _name isSel ->
+        [whamlet|
 $newline never
 <option value=none :isSel:selected>_{MsgSelectNone}
-|]) -- onOpt
-    (\_theId _name _attrs value isSel text -> [whamlet|
+|]
+    )
+    -- onOpt
+    ( \_theId _name _attrs value isSel text ->
+        [whamlet|
 $newline never
 <option value=#{value} :isSel:selected>#{text}
-|]) -- inside
-    (Just $ \label -> [whamlet|
+|]
+    )
+    -- inside
+    ( Just $ \label ->
+        [whamlet|
 <optgroup label=#{label}>
-|]) -- group label
+|]
+    )
+
+-- group label
 
 -- | Creates a @\<select>@ tag for selecting multiple options.
-multiSelectFieldList :: (Eq a, RenderMessage site msg)
-                     => [(msg, a)]
-                     -> Field (HandlerFor site) [a]
+multiSelectFieldList ::
+  (Eq a, RenderMessage site msg) =>
+  [(msg, a)] ->
+  Field (HandlerFor site) [a]
 multiSelectFieldList = multiSelectField . optionsPairs
 
 -- | Creates a @\<select>@ tag for selecting multiple options.
-multiSelectField :: Eq a
-                 => HandlerFor site (OptionList a)
-                 -> Field (HandlerFor site) [a]
+multiSelectField ::
+  (Eq a) =>
+  HandlerFor site (OptionList a) ->
+  Field (HandlerFor site) [a]
 multiSelectField ioptlist =
-    Field parse view UrlEncoded
-  where
-    parse [] _ = return $ Right Nothing
-    parse optlist _ = do
-        mapopt <- olReadExternal <$> ioptlist
-        case mapM mapopt optlist of
-             Nothing -> return $ Left "Error parsing values"
-             Just res -> return $ Right $ Just res
+  Field parse view UrlEncoded
+ where
+  parse [] _ = return $ Right Nothing
+  parse optlist _ = do
+    mapopt <- olReadExternal <$> ioptlist
+    case mapM mapopt optlist of
+      Nothing -> return $ Left "Error parsing values"
+      Just res -> return $ Right $ Just res
 
-    view theId name attrs val isReq = do
-        opts <- fmap olOptions $ handlerToWidget ioptlist
-        let selOpts = map (id &&& (optselected val)) opts
-        [whamlet|
+  view theId name attrs val isReq = do
+    opts <- fmap olOptions $ handlerToWidget ioptlist
+    let selOpts = map (id &&& (optselected val)) opts
+    [whamlet|
             <select ##{theId} name=#{name} :isReq:required multiple *{attrs}>
                 $forall (opt, optsel) <- selOpts
                     <option value=#{optionExternalValue opt} :optsel:selected>#{optionDisplay opt}
                 |]
-        where
-            optselected (Left _) _ = False
-            optselected (Right vals) opt = (optionInternalValue opt) `elem` vals
+   where
+    optselected (Left _) _ = False
+    optselected (Right vals) opt = (optionInternalValue opt) `elem` vals
 
 -- | Creates an input with @type="radio"@ for selecting one option.
-radioFieldList :: (Eq a, RenderMessage site FormMessage, RenderMessage site msg)
-               => [(msg, a)]
-               -> Field (HandlerFor site) a
+radioFieldList ::
+  (Eq a, RenderMessage site FormMessage, RenderMessage site msg) =>
+  [(msg, a)] ->
+  Field (HandlerFor site) a
 radioFieldList = radioField . optionsPairs
 
 -- | Creates an input with @type="checkbox"@ for selecting multiple options.
-checkboxesFieldList :: (Eq a, RenderMessage site msg) => [(msg, a)]
-                     -> Field (HandlerFor site) [a]
+checkboxesFieldList ::
+  (Eq a, RenderMessage site msg) =>
+  [(msg, a)] ->
+  Field (HandlerFor site) [a]
 checkboxesFieldList = checkboxesField . optionsPairs
 
 -- | Creates an input with @type="checkbox"@ for selecting multiple options.
-checkboxesField :: Eq a
-                 => HandlerFor site (OptionList a)
-                 -> Field (HandlerFor site) [a]
-checkboxesField ioptlist = (multiSelectField ioptlist)
+checkboxesField ::
+  (Eq a) =>
+  HandlerFor site (OptionList a) ->
+  Field (HandlerFor site) [a]
+checkboxesField ioptlist =
+  (multiSelectField ioptlist)
     { fieldView =
         \theId name attrs val _isReq -> do
-            opts <- fmap olOptions $ handlerToWidget ioptlist
-            let optselected (Left _) _ = False
-                optselected (Right vals) opt = (optionInternalValue opt) `elem` vals
-            [whamlet|
+          opts <- fmap olOptions $ handlerToWidget ioptlist
+          let optselected (Left _) _ = False
+              optselected (Right vals) opt = (optionInternalValue opt) `elem` vals
+          [whamlet|
                 <span ##{theId}>
                     $forall opt <- opts
                         <label>
@@ -535,16 +648,18 @@ checkboxesField ioptlist = (multiSelectField ioptlist)
     }
 
 -- | Creates an input with @type="checkbox"@ for selecting multiple options.
-checkboxesField' :: Eq a
-                 => HandlerFor site (OptionList a)
-                 -> Field (HandlerFor site) [a]
-checkboxesField' ioptlist = (multiSelectField ioptlist)
+checkboxesField' ::
+  (Eq a) =>
+  HandlerFor site (OptionList a) ->
+  Field (HandlerFor site) [a]
+checkboxesField' ioptlist =
+  (multiSelectField ioptlist)
     { fieldView =
         \theId name attrs val _isReq -> do
-            opts <- olOptions <$> handlerToWidget ioptlist
-            let optselected (Left _) _ = False
-                optselected (Right vals) opt = optionInternalValue opt `elem` vals
-            [whamlet|
+          opts <- olOptions <$> handlerToWidget ioptlist
+          let optselected (Left _) _ = False
+              optselected (Right vals) opt = optionInternalValue opt `elem` vals
+          [whamlet|
                 <span ##{theId}>
                     $forall opt <- opts
                         <input id=#{theId}-#{optionExternalValue opt} type=checkbox name=#{name} value=#{optionExternalValue opt} *{attrs} :optselected val opt:checked>
@@ -553,51 +668,61 @@ checkboxesField' ioptlist = (multiSelectField ioptlist)
                 |]
     }
 
-
 -- | Creates an input with @type="radio"@ for selecting one option.
-radioField :: (Eq a, RenderMessage site FormMessage)
-           => HandlerFor site (OptionList a)
-           -> Field (HandlerFor site) a
-radioField = withRadioField
-    (\theId optionWidget -> [whamlet|
+radioField ::
+  (Eq a, RenderMessage site FormMessage) =>
+  HandlerFor site (OptionList a) ->
+  Field (HandlerFor site) a
+radioField =
+  withRadioField
+    ( \theId optionWidget ->
+        [whamlet|
 $newline never
 <div .radio>
     <label for=#{theId}-none>
         <div>
             ^{optionWidget}
             _{MsgSelectNone}
-|])
-    (\theId value _isSel text optionWidget -> [whamlet|
+|]
+    )
+    ( \theId value _isSel text optionWidget ->
+        [whamlet|
 $newline never
 <div .radio>
     <label for=#{theId}-#{value}>
         <div>
             ^{optionWidget}
             \#{text}
-|])
-
+|]
+    )
 
 -- | Creates an input with @type="radio"@ for selecting one option.
 --
 --   @since 1.7.8
-radioField' :: (Eq a, RenderMessage site FormMessage)
-           => HandlerFor site (OptionList a)
-           -> Field (HandlerFor site) a
-radioField' = withRadioField
-    (\theId optionWidget -> [whamlet|
+radioField' ::
+  (Eq a, RenderMessage site FormMessage) =>
+  HandlerFor site (OptionList a) ->
+  Field (HandlerFor site) a
+radioField' =
+  withRadioField
+    ( \theId optionWidget ->
+        [whamlet|
 $newline never
 <.radio>
   ^{optionWidget}
   <label for=#{theId}-none>
     _{MsgSelectNone}
-|])
-    (\theId value _isSel text optionWidget -> [whamlet|
+|]
+    )
+    ( \theId value _isSel text optionWidget ->
+        [whamlet|
 $newline never
 <.radio>
   ^{optionWidget}
   <label for=#{theId}-#{value}>
     \#{text}
-|])
+|]
+    )
 
 -- | Allows the user to place the option radio widget somewhere in
 --   the template.
@@ -605,24 +730,35 @@ $newline never
 --   'radioField' is an example on how to use this function.
 --
 --   @since 1.7.2
-withRadioField :: (Eq a, RenderMessage site FormMessage)
-           => (Text -> WidgetFor site ()-> WidgetFor site ()) -- ^ nothing case for mopt
-           -> (Text ->  Text -> Bool -> Text -> WidgetFor site () -> WidgetFor site ()) -- ^ cases for values
-           -> HandlerFor site (OptionList a)
-           -> Field (HandlerFor site) a
+withRadioField ::
+  (Eq a, RenderMessage site FormMessage) =>
+  -- | nothing case for mopt
+  (Text -> WidgetFor site () -> WidgetFor site ()) ->
+  -- | cases for values
+  (Text -> Text -> Bool -> Text -> WidgetFor site () -> WidgetFor site ()) ->
+  HandlerFor site (OptionList a) ->
+  Field (HandlerFor site) a
 withRadioField nothingFun optFun =
   selectFieldHelper outside onOpt inside Nothing
-  where
-    outside theId _name _attrs inside' = [whamlet|
+ where
+  outside theId _name _attrs inside' =
+    [whamlet|
 $newline never
 <div ##{theId}>^{inside'}
 |]
-    onOpt theId name isSel = nothingFun theId $ [whamlet|
+  onOpt theId name isSel =
+    nothingFun theId $
+      [whamlet|
 $newline never
 <input id=#{theId}-none type=radio name=#{name} value=none :isSel:checked>
 |]
-    inside theId name attrs value isSel display =
-       optFun theId value isSel display [whamlet|
+  inside theId name attrs value isSel display =
+    optFun
+      theId
+      value
+      isSel
+      display
+      [whamlet|
 <input id=#{theId}-#{(value)} type=radio name=#{name} value=#{(value)} :isSel:checked *{attrs}>
 |]
 
@@ -633,10 +769,13 @@ $newline never
 -- If this field is required, the first radio button is labeled \"Yes" and the second \"No".
 --
 -- (Exact label titles will depend on localization).
-boolField :: Monad m => RenderMessage (HandlerSite m) FormMessage => Field m Bool
-boolField = Field
-      { fieldParse = \e _ -> return $ boolParser e
-      , fieldView = \theId name attrs val isReq -> [whamlet|
+boolField ::
+  (Monad m) => (RenderMessage (HandlerSite m) FormMessage) => Field m Bool
+boolField =
+  Field
+    { fieldParse = \e _ -> return $ boolParser e
+    , fieldView = \theId name attrs val isReq ->
+        [whamlet|
 $newline never
   $if not isReq
       <input id=#{theId}-none *{attrs} type=radio name=#{name} value=none checked>
@@ -651,18 +790,18 @@ $newline never
 |]
     , fieldEnctype = UrlEncoded
     }
-  where
-    boolParser [] = Right Nothing
-    boolParser (x:_) = case x of
-      "" -> Right Nothing
-      "none" -> Right Nothing
-      "yes" -> Right $ Just True
-      "on" -> Right $ Just True
-      "no" -> Right $ Just False
-      "true" -> Right $ Just True
-      "false" -> Right $ Just False
-      t -> Left $ SomeMessage $ MsgInvalidBool t
-    showVal = either (\_ -> False)
+ where
+  boolParser [] = Right Nothing
+  boolParser (x : _) = case x of
+    "" -> Right Nothing
+    "none" -> Right Nothing
+    "yes" -> Right $ Just True
+    "on" -> Right $ Just True
+    "no" -> Right $ Just False
+    "true" -> Right $ Just True
+    "false" -> Right $ Just False
+    t -> Left $ SomeMessage $ MsgInvalidBool t
+  showVal = either (\_ -> False)
 
 -- | Creates an input with @type="checkbox"@.
 --   While the default @'boolField'@ implements a radio button so you
@@ -671,38 +810,40 @@ $newline never
 --   response as @Just False@.
 --
 --   Note that this makes the field always optional.
---
-checkBoxField :: Monad m => Field m Bool
-checkBoxField = Field
+checkBoxField :: (Monad m) => Field m Bool
+checkBoxField =
+  Field
     { fieldParse = \e _ -> return $ checkBoxParser e
-    , fieldView  = \theId name attrs val _ -> [whamlet|
+    , fieldView = \theId name attrs val _ ->
+        [whamlet|
 $newline never
 <input id=#{theId} *{attrs} type=checkbox name=#{name} value=yes :showVal id val:checked>
 |]
     , fieldEnctype = UrlEncoded
     }
+ where
+  checkBoxParser [] = Right $ Just False
+  checkBoxParser (x : _) = case x of
+    "yes" -> Right $ Just True
+    "on" -> Right $ Just True
+    _ -> Right $ Just False
 
-    where
-        checkBoxParser [] = Right $ Just False
-        checkBoxParser (x:_) = case x of
-            "yes" -> Right $ Just True
-            "on" -> Right $ Just True
-            _     -> Right $ Just False
-
-        showVal = either (\_ -> False)
+  showVal = either (\_ -> False)
 
 -- | A structure holding a list of options. Typically you can use a convenience function like 'mkOptionList' or 'optionsPairs' instead of creating this directly.
 --
 -- Extended by 'OptionListGrouped' in 1.7.0.
 data OptionList a
   = OptionList
-    { olOptions :: [Option a]
-    , olReadExternal :: Text -> Maybe a -- ^ A function mapping from the form's value ('optionExternalValue') to the selected Haskell value ('optionInternalValue').
-    }
+      { olOptions :: [Option a]
+      , olReadExternal :: Text -> Maybe a
+      -- ^ A function mapping from the form's value ('optionExternalValue') to the selected Haskell value ('optionInternalValue').
+      }
   | OptionListGrouped
-    { olOptionsGrouped :: [(Text, [Option a])]
-    , olReadExternalGrouped :: Text -> Maybe a -- ^ A function mapping from the form's value ('optionExternalValue') to the selected Haskell value ('optionInternalValue').
-    }
+      { olOptionsGrouped :: [(Text, [Option a])]
+      , olReadExternalGrouped :: Text -> Maybe a
+      -- ^ A function mapping from the form's value ('optionExternalValue') to the selected Haskell value ('optionInternalValue').
+      }
 
 -- | Convert grouped 'OptionList' to a normal one.
 --
@@ -713,62 +854,80 @@ flattenOptionList ol = ol
 
 -- | @since 1.4.6
 instance Functor OptionList where
-    fmap f (OptionList options readExternal) =
-      OptionList ((fmap.fmap) f options) (fmap f . readExternal)
-    fmap f (OptionListGrouped options readExternal) =
-      OptionListGrouped (map (\(g, os) -> (g, (fmap.fmap) f os)) options) (fmap f . readExternal)
+  fmap f (OptionList options readExternal) =
+    OptionList ((fmap . fmap) f options) (fmap f . readExternal)
+  fmap f (OptionListGrouped options readExternal) =
+    OptionListGrouped
+      (map (\(g, os) -> (g, (fmap . fmap) f os)) options)
+      (fmap f . readExternal)
 
 -- | Creates an 'OptionList', using a 'Map' to implement the 'olReadExternal' function.
 mkOptionList :: [Option a] -> OptionList a
-mkOptionList os = OptionList
+mkOptionList os =
+  OptionList
     { olOptions = os
-    , olReadExternal = flip Map.lookup $ Map.fromList $ map (optionExternalValue &&& optionInternalValue) os
+    , olReadExternal =
+        flip Map.lookup $
+          Map.fromList $
+            map (optionExternalValue &&& optionInternalValue) os
     }
 
 -- | Creates an 'OptionList', using a 'Map' to implement the 'olReadExternalGrouped' function.
 --
 -- @since 1.7.0
 mkOptionListGrouped :: [(Text, [Option a])] -> OptionList a
-mkOptionListGrouped os = OptionListGrouped
+mkOptionListGrouped os =
+  OptionListGrouped
     { olOptionsGrouped = os
-    , olReadExternalGrouped = flip Map.lookup $ Map.fromList $ map (optionExternalValue &&& optionInternalValue) $ concatMap snd os
+    , olReadExternalGrouped =
+        flip Map.lookup $
+          Map.fromList $
+            map (optionExternalValue &&& optionInternalValue) $
+              concatMap snd os
     }
 
 data Option a = Option
-    { optionDisplay :: Text -- ^ The user-facing label.
-    , optionInternalValue :: a -- ^ The Haskell value being selected.
-    , optionExternalValue :: Text -- ^ The representation of this value stored in the form.
-    }
+  { optionDisplay :: Text
+  -- ^ The user-facing label.
+  , optionInternalValue :: a
+  -- ^ The Haskell value being selected.
+  , optionExternalValue :: Text
+  -- ^ The representation of this value stored in the form.
+  }
 
 -- | @since 1.4.6
 instance Functor Option where
-    fmap f (Option display internal external) = Option display (f internal) external
+  fmap f (Option display internal external) = Option display (f internal) external
 
 -- | Creates an 'OptionList' from a list of (display-value, internal value) pairs.
-optionsPairs :: (MonadHandler m, RenderMessage (HandlerSite m) msg)
-             => [(msg, a)] -> m (OptionList a)
+optionsPairs ::
+  (MonadHandler m, RenderMessage (HandlerSite m) msg) =>
+  [(msg, a)] -> m (OptionList a)
 optionsPairs opts = do
   mr <- getMessageRender
   let mkOption external (display, internal) =
-          Option { optionDisplay       = mr display
-                 , optionInternalValue = internal
-                 , optionExternalValue = pack $ show external
-                 }
+        Option
+          { optionDisplay = mr display
+          , optionInternalValue = internal
+          , optionExternalValue = pack $ show external
+          }
   return $ mkOptionList (zipWith mkOption [1 :: Int ..] opts)
 
 -- | Creates an 'OptionList' from a list of (display-value, internal value) pairs.
 --
 -- @since 1.7.0
-optionsPairsGrouped
-  :: forall m msg a. (MonadHandler m, RenderMessage (HandlerSite m) msg)
-  => [(msg, [(msg, a)])] -> m (OptionList a)
+optionsPairsGrouped ::
+  forall m msg a.
+  (MonadHandler m, RenderMessage (HandlerSite m) msg) =>
+  [(msg, [(msg, a)])] -> m (OptionList a)
 optionsPairsGrouped opts = do
   mr <- getMessageRender
   let mkOption (external, (display, internal)) =
-          Option { optionDisplay       = mr display
-                 , optionInternalValue = internal
-                 , optionExternalValue = pack $ show external
-                 }
+        Option
+          { optionDisplay = mr display
+          , optionInternalValue = internal
+          , optionExternalValue = pack $ show external
+          }
       opts' = enumerateSublists opts :: [(msg, [(Int, (msg, a))])]
       opts'' = map (\(x, ys) -> (mr x, map mkOption ys)) opts'
   return $ mkOptionListGrouped opts''
@@ -777,12 +936,14 @@ optionsPairsGrouped opts = do
 enumerateSublists :: forall a b. [(a, [b])] -> [(a, [(Int, b)])]
 enumerateSublists xss =
   let yss :: [(Int, (a, [b]))]
-      yss = snd $ foldl (\(i, res) xs -> (i + (length.snd) xs, res ++ [(i, xs)])) (1, []) xss
+      yss =
+        snd $
+          foldl (\(i, res) xs -> (i + (length . snd) xs, res ++ [(i, xs)])) (1, []) xss
    in map (\(i, (x, ys)) -> (x, zip [i :: Int ..] ys)) yss
 
 -- | Creates an 'OptionList' from an 'Enum', using its 'Show' instance for the user-facing value.
 optionsEnum :: (MonadHandler m, Show a, Enum a, Bounded a) => m (OptionList a)
-optionsEnum = optionsPairs $ map (\x -> (pack $ show x, x)) [minBound..maxBound]
+optionsEnum = optionsPairs $ map (\x -> (pack $ show x, x)) [minBound .. maxBound]
 
 -- | Selects a list of 'Entity's with the given 'Filter' and 'SelectOpt's. The @(a -> msg)@ function is then used to derive the display value for an 'OptionList'. Example usage:
 --
@@ -824,13 +985,18 @@ optionsPersist :: ( YesodPersist site, PersistEntity a
                -> HandlerFor site (OptionList (Entity a))
 #endif
 optionsPersist filts ords toDisplay = fmap mkOptionList $ do
-    mr <- getMessageRender
-    pairs <- runDB $ selectList filts ords
-    return $ map (\(Entity key value) -> Option
-        { optionDisplay = mr (toDisplay value)
-        , optionInternalValue = Entity key value
-        , optionExternalValue = toPathPiece key
-        }) pairs
+  mr <- getMessageRender
+  pairs <- runDB $ selectList filts ords
+  return $
+    map
+      ( \(Entity key value) ->
+          Option
+            { optionDisplay = mr (toDisplay value)
+            , optionInternalValue = Entity key value
+            , optionExternalValue = toPathPiece key
+            }
+      )
+      pairs
 
 -- | An alternative to 'optionsPersist' which returns just the 'Key' instead of
 -- the entire 'Entity'.
@@ -865,160 +1031,187 @@ optionsPersistKey
 #endif
 
 optionsPersistKey filts ords toDisplay = fmap mkOptionList $ do
-    mr <- getMessageRender
-    pairs <- runDB $ selectList filts ords
-    return $ map (\(Entity key value) -> Option
-        { optionDisplay = mr (toDisplay value)
-        , optionInternalValue = key
-        , optionExternalValue = toPathPiece key
-        }) pairs
+  mr <- getMessageRender
+  pairs <- runDB $ selectList filts ords
+  return $
+    map
+      ( \(Entity key value) ->
+          Option
+            { optionDisplay = mr (toDisplay value)
+            , optionInternalValue = key
+            , optionExternalValue = toPathPiece key
+            }
+      )
+      pairs
 
 -- |
 -- A helper function for constucting 'selectField's with optional option groups. You may want to use this when you define your custom 'selectField's or 'radioField's.
 --
 -- @since 1.6.2
-selectFieldHelper
-        :: (Eq a, RenderMessage site FormMessage)
-        => (Text -> Text -> [(Text, Text)] -> WidgetFor site () -> WidgetFor site ()) -- ^ Outermost part of the field
-        -> (Text -> Text -> Bool -> WidgetFor site ()) -- ^ An option for None if the field is optional
-        -> (Text -> Text -> [(Text, Text)] -> Text -> Bool -> Text -> WidgetFor site ()) -- ^ Other options
-        -> (Maybe (Text -> WidgetFor site ())) -- ^ Group headers placed inbetween options
-        -> HandlerFor site (OptionList a)
-        -> Field (HandlerFor site) a
-selectFieldHelper outside onOpt inside grpHdr opts' = Field
+selectFieldHelper ::
+  (Eq a, RenderMessage site FormMessage) =>
+  -- | Outermost part of the field
+  (Text -> Text -> [(Text, Text)] -> WidgetFor site () -> WidgetFor site ()) ->
+  -- | An option for None if the field is optional
+  (Text -> Text -> Bool -> WidgetFor site ()) ->
+  -- | Other options
+  (Text -> Text -> [(Text, Text)] -> Text -> Bool -> Text -> WidgetFor site ()) ->
+  -- | Group headers placed inbetween options
+  (Maybe (Text -> WidgetFor site ())) ->
+  HandlerFor site (OptionList a) ->
+  Field (HandlerFor site) a
+selectFieldHelper outside onOpt inside grpHdr opts' =
+  Field
     { fieldParse = \x _ -> do
         opts <- fmap flattenOptionList opts'
         return $ selectParser opts x
     , fieldView = \theId name attrs val isReq -> do
         outside theId name attrs $ do
-          optsFlat <- fmap (olOptions.flattenOptionList) $ handlerToWidget opts'
-          unless isReq $ onOpt theId name $ render optsFlat val `notElem` map optionExternalValue optsFlat
+          optsFlat <- fmap (olOptions . flattenOptionList) $ handlerToWidget opts'
+          unless isReq $
+            onOpt theId name $
+              render optsFlat val `notElem` map optionExternalValue optsFlat
           opts'' <- handlerToWidget opts'
           case opts'' of
             OptionList{} -> constructOptions theId name attrs val isReq optsFlat
-            OptionListGrouped{olOptionsGrouped=grps} -> do
-                  forM_ grps $ \(grp, opts) -> do
-                    case grpHdr of
-                      Just hdr -> hdr grp
-                      Nothing -> return ()
-                    constructOptions theId name attrs val isReq opts
+            OptionListGrouped{olOptionsGrouped = grps} -> do
+              forM_ grps $ \(grp, opts) -> do
+                case grpHdr of
+                  Just hdr -> hdr grp
+                  Nothing -> return ()
+                constructOptions theId name attrs val isReq opts
     , fieldEnctype = UrlEncoded
     }
-  where
-    render _ (Left x) = x
-    render opts (Right a) = maybe "" optionExternalValue $ listToMaybe $ filter ((== a) . optionInternalValue) opts
-    selectParser _ [] = Right Nothing
-    selectParser opts (s:_) = case s of
-            "" -> Right Nothing
-            "none" -> Right Nothing
-            x -> case olReadExternal opts x of
-                    Nothing -> Left $ SomeMessage $ MsgInvalidEntry x
-                    Just y -> Right $ Just y
-    constructOptions theId name attrs val isReq opts =
-      forM_ opts $ \opt -> inside
-                           theId
-                           name
-                           ((if isReq then (("required", "required"):) else id) attrs)
-                           (optionExternalValue opt)
-                           (render opts val == optionExternalValue opt)
-                           (optionDisplay opt)
+ where
+  render _ (Left x) = x
+  render opts (Right a) =
+    maybe "" optionExternalValue $
+      listToMaybe $
+        filter ((== a) . optionInternalValue) opts
+  selectParser _ [] = Right Nothing
+  selectParser opts (s : _) = case s of
+    "" -> Right Nothing
+    "none" -> Right Nothing
+    x -> case olReadExternal opts x of
+      Nothing -> Left $ SomeMessage $ MsgInvalidEntry x
+      Just y -> Right $ Just y
+  constructOptions theId name attrs val isReq opts =
+    forM_ opts $ \opt ->
+      inside
+        theId
+        name
+        ((if isReq then (("required", "required") :) else id) attrs)
+        (optionExternalValue opt)
+        (render opts val == optionExternalValue opt)
+        (optionDisplay opt)
 
 -- | Creates an input with @type="file"@.
-fileField :: Monad m
-          => Field m FileInfo
-fileField = Field
+fileField ::
+  (Monad m) =>
+  Field m FileInfo
+fileField =
+  Field
     { fieldParse = \_ files -> return $
         case files of
-            [] -> Right Nothing
-            file:_ -> Right $ Just file
-    , fieldView = \id' name attrs _ isReq -> toWidget [hamlet|
+          [] -> Right Nothing
+          file : _ -> Right $ Just file
+    , fieldView = \id' name attrs _ isReq ->
+        toWidget
+          [hamlet|
             <input id=#{id'} name=#{name} *{attrs} type=file :isReq:required>
         |]
     , fieldEnctype = Multipart
     }
 
-fileAFormReq :: (MonadHandler m, RenderMessage (HandlerSite m) FormMessage)
-             => FieldSettings (HandlerSite m) -> AForm m FileInfo
+fileAFormReq ::
+  (MonadHandler m, RenderMessage (HandlerSite m) FormMessage) =>
+  FieldSettings (HandlerSite m) -> AForm m FileInfo
 fileAFormReq fs = AForm $ \(site, langs) menvs ints -> do
-    let (name, ints') =
-            case fsName fs of
-                Just x -> (x, ints)
-                Nothing ->
-                    let i' = incrInts ints
-                     in (pack $ 'f' : show i', i')
-    id' <- maybe newIdent return $ fsId fs
-    let (res, errs) =
-            case menvs of
-                Nothing -> (FormMissing, Nothing)
-                Just (_, fenv) ->
-                    case Map.lookup name fenv of
-                        Just (fi:_) -> (FormSuccess fi, Nothing)
-                        _ ->
-                            let t = renderMessage site langs MsgValueRequired
-                             in (FormFailure [t], Just $ toHtml t)
-    let fv = FieldView
-            { fvLabel = toHtml $ renderMessage site langs $ fsLabel fs
-            , fvTooltip = fmap (toHtml . renderMessage site langs) $ fsTooltip fs
-            , fvId = id'
-            , fvInput = [whamlet|
+  let (name, ints') =
+        case fsName fs of
+          Just x -> (x, ints)
+          Nothing ->
+            let i' = incrInts ints
+             in (pack $ 'f' : show i', i')
+  id' <- maybe newIdent return $ fsId fs
+  let (res, errs) =
+        case menvs of
+          Nothing -> (FormMissing, Nothing)
+          Just (_, fenv) ->
+            case Map.lookup name fenv of
+              Just (fi : _) -> (FormSuccess fi, Nothing)
+              _ ->
+                let t = renderMessage site langs MsgValueRequired
+                 in (FormFailure [t], Just $ toHtml t)
+  let fv =
+        FieldView
+          { fvLabel = toHtml $ renderMessage site langs $ fsLabel fs
+          , fvTooltip = fmap (toHtml . renderMessage site langs) $ fsTooltip fs
+          , fvId = id'
+          , fvInput =
+              [whamlet|
 $newline never
 <input type=file name=#{name} ##{id'} *{fsAttrs fs}>
 |]
-            , fvErrors = errs
-            , fvRequired = True
-            }
-    return (res, (fv :), ints', Multipart)
+          , fvErrors = errs
+          , fvRequired = True
+          }
+  return (res, (fv :), ints', Multipart)
 
-fileAFormOpt :: MonadHandler m
-             => FieldSettings (HandlerSite m)
-             -> AForm m (Maybe FileInfo)
+fileAFormOpt ::
+  (MonadHandler m) =>
+  FieldSettings (HandlerSite m) ->
+  AForm m (Maybe FileInfo)
 fileAFormOpt fs = AForm $ \(master, langs) menvs ints -> do
-    let (name, ints') =
-            case fsName fs of
-                Just x -> (x, ints)
-                Nothing ->
-                    let i' = incrInts ints
-                     in (pack $ 'f' : show i', i')
-    id' <- maybe newIdent return $ fsId fs
-    let (res, errs) =
-            case menvs of
-                Nothing -> (FormMissing, Nothing)
-                Just (_, fenv) ->
-                    case Map.lookup name fenv of
-                        Just (fi:_) -> (FormSuccess $ Just fi, Nothing)
-                        _ -> (FormSuccess Nothing, Nothing)
-    let fv = FieldView
-            { fvLabel = toHtml $ renderMessage master langs $ fsLabel fs
-            , fvTooltip = fmap (toHtml . renderMessage master langs) $ fsTooltip fs
-            , fvId = id'
-            , fvInput = [whamlet|
+  let (name, ints') =
+        case fsName fs of
+          Just x -> (x, ints)
+          Nothing ->
+            let i' = incrInts ints
+             in (pack $ 'f' : show i', i')
+  id' <- maybe newIdent return $ fsId fs
+  let (res, errs) =
+        case menvs of
+          Nothing -> (FormMissing, Nothing)
+          Just (_, fenv) ->
+            case Map.lookup name fenv of
+              Just (fi : _) -> (FormSuccess $ Just fi, Nothing)
+              _ -> (FormSuccess Nothing, Nothing)
+  let fv =
+        FieldView
+          { fvLabel = toHtml $ renderMessage master langs $ fsLabel fs
+          , fvTooltip = fmap (toHtml . renderMessage master langs) $ fsTooltip fs
+          , fvId = id'
+          , fvInput =
+              [whamlet|
 $newline never
 <input type=file name=#{name} ##{id'} *{fsAttrs fs}>
 |]
-            , fvErrors = errs
-            , fvRequired = False
-            }
-    return (res, (fv :), ints', Multipart)
+          , fvErrors = errs
+          , fvRequired = False
+          }
+  return (res, (fv :), ints', Multipart)
 
 incrInts :: Ints -> Ints
 incrInts (IntSingle i) = IntSingle $ i + 1
 incrInts (IntCons i is) = (i + 1) `IntCons` is
 
-
 -- | Adds a '0' to some text so that it may be recognized as a double.
 --   The read ftn does not recognize ".3" as 0.3 nor "-.3" as -0.3, so this
 --   function changes ".xxx" to "0.xxx" and "-.xxx" to "-0.xxx"
-
 prependZero :: Text -> Text
-prependZero t0 = if T.null t1
-                 then t1
-                 else if T.head t1 == '.'
-                      then '0' `T.cons` t1
-                      else if "-." `T.isPrefixOf` t1
-                           then "-0." `T.append` (T.drop 2 t1)
-                           else t1
-
-  where t1 = T.dropWhile (== ' ') t0
+prependZero t0 =
+  if T.null t1
+    then t1
+    else
+      if T.head t1 == '.'
+        then '0' `T.cons` t1
+        else
+          if "-." `T.isPrefixOf` t1
+            then "-0." `T.append` (T.drop 2 t1)
+            else t1
+ where
+  t1 = T.dropWhile (== ' ') t0
 
 -- $optionsOverview
 -- These functions create inputs where one or more options can be selected from a list.
@@ -1031,39 +1224,46 @@ prependZero t0 = if T.null t1
 --   The input value must be provided in hexadecimal format #rrggbb.
 --
 -- @since 1.7.1
-colorField :: Monad m => RenderMessage (HandlerSite m) FormMessage => Field m Text
-colorField = Field
+colorField ::
+  (Monad m) => (RenderMessage (HandlerSite m) FormMessage) => Field m Text
+colorField =
+  Field
     { fieldParse = parseHelper $ \s ->
-        if isHexColor $ unpack s then Right s
-        else Left $ MsgInvalidHexColorFormat s
-    , fieldView = \theId name attrs val _ -> [whamlet|
+        if isHexColor $ unpack s
+          then Right s
+          else Left $ MsgInvalidHexColorFormat s
+    , fieldView = \theId name attrs val _ ->
+        [whamlet|
 $newline never
 <input ##{theId} name=#{name} *{attrs} type=color value=#{either id id val}>
 |]
     , fieldEnctype = UrlEncoded
     }
-  where
-      isHexColor :: String -> Bool
-      isHexColor ['#',a,b,c,d,e,f] = all isHexDigit [a,b,c,d,e,f]
-      isHexColor _ = False
+ where
+  isHexColor :: String -> Bool
+  isHexColor ['#', a, b, c, d, e, f] = all isHexDigit [a, b, c, d, e, f]
+  isHexColor _ = False
 
 -- | Creates an input with @type="datetime-local"@.
 --   The input value must be provided in YYYY-MM-DD(T| )HH:MM[:SS] format.
 --
 -- @since 1.7.6
-datetimeLocalField :: Monad m => RenderMessage (HandlerSite m) FormMessage => Field m LocalTime
-datetimeLocalField = Field
+datetimeLocalField ::
+  (Monad m) => (RenderMessage (HandlerSite m) FormMessage) => Field m LocalTime
+datetimeLocalField =
+  Field
     { fieldParse = parseHelper $ \s -> case T.split (\c -> (c == 'T') || (c == ' ')) s of
-        [d,t] -> do
-            day <- parseDate $ unpack d
-            time <- parseTime t
-            Right $ LocalTime day time
+        [d, t] -> do
+          day <- parseDate $ unpack d
+          time <- parseTime t
+          Right $ LocalTime day time
         _ -> Left $ MsgInvalidDatetimeFormat s
-    , fieldView = \theId name attrs val isReq -> [whamlet|
+    , fieldView = \theId name attrs val isReq ->
+        [whamlet|
 $newline never
 <input type=datetime-local ##{theId} name=#{name} value=#{showVal val} *{attrs} :isReq:required>
 |]
     , fieldEnctype = UrlEncoded
     }
-  where
-    showVal = either id (pack . show)
+ where
+  showVal = either id (pack . show)

@@ -2,27 +2,30 @@
 
 module Yesod.Form.I18n.German where
 
-import Yesod.Form.Types (FormMessage (..))
 import Data.Text (Text)
+import Yesod.Form.Types (FormMessage (..))
 
 germanFormMessage :: FormMessage -> Text
-germanFormMessage (MsgInvalidInteger t) = "Ungültige Ganzzahl: " `mappend` t
-germanFormMessage (MsgInvalidNumber t) = "Ungültige Zahl: " `mappend` t
-germanFormMessage (MsgInvalidEntry t) = "Ungültiger Eintrag: " `mappend` t
+germanFormMessage (MsgInvalidInteger t) = "Ungültige Ganzzahl: " <> t
+germanFormMessage (MsgInvalidNumber t) = "Ungültige Zahl: " <> t
+germanFormMessage (MsgInvalidEntry t) = "Ungültiger Eintrag: " <> t
 germanFormMessage MsgInvalidTimeFormat = "Ungültiges Zeitformat, HH:MM[:SS] Format erwartet"
 germanFormMessage MsgInvalidDay = "Ungültiges Datum, JJJJ-MM-TT Format erwartet"
-germanFormMessage (MsgInvalidUrl t) = "Ungültige URL: " `mappend` t
-germanFormMessage (MsgInvalidEmail t) = "Ungültige e-Mail Adresse: " `mappend` t
-germanFormMessage (MsgInvalidHour t) = "Ungültige Stunde: " `mappend` t
-germanFormMessage (MsgInvalidMinute t) = "Ungültige Minute: " `mappend` t
-germanFormMessage (MsgInvalidSecond t) = "Ungültige Sekunde: " `mappend` t
-germanFormMessage MsgCsrfWarning = "Bitte bestätigen Sie ihre Eingabe, als Schutz gegen Cross-Site Forgery Angriffe"
+germanFormMessage (MsgInvalidUrl t) = "Ungültige URL: " <> t
+germanFormMessage (MsgInvalidEmail t) = "Ungültige e-Mail Adresse: " <> t
+germanFormMessage (MsgInvalidHour t) = "Ungültige Stunde: " <> t
+germanFormMessage (MsgInvalidMinute t) = "Ungültige Minute: " <> t
+germanFormMessage (MsgInvalidSecond t) = "Ungültige Sekunde: " <> t
+germanFormMessage MsgCsrfWarning =
+  "Bitte bestätigen Sie ihre Eingabe, als Schutz gegen Cross-Site Forgery Angriffe"
 germanFormMessage MsgValueRequired = "Wert wird benötigt"
-germanFormMessage (MsgInputNotFound t) = "Eingabe nicht gefunden: " `mappend` t
+germanFormMessage (MsgInputNotFound t) = "Eingabe nicht gefunden: " <> t
 germanFormMessage MsgSelectNone = "<Nichts>"
-germanFormMessage (MsgInvalidBool t) = "Ungültiger Wahrheitswert: " `mappend` t
+germanFormMessage (MsgInvalidBool t) = "Ungültiger Wahrheitswert: " <> t
 germanFormMessage MsgBoolYes = "Ja"
 germanFormMessage MsgBoolNo = "Nein"
 germanFormMessage MsgDelete = "Löschen?"
-germanFormMessage (MsgInvalidHexColorFormat t) = "Ungültige Farbe, muss im Hexadezimalformat #rrggbb vorliegen: " `mappend` t
-germanFormMessage (MsgInvalidDatetimeFormat t) = "Ungültige Datums- und Uhrzeitangabe, muss im Format YYYY-MM-DD(T| )HH:MM[:SS] vorliegen: " `mappend` t
+germanFormMessage (MsgInvalidHexColorFormat t) = "Ungültige Farbe, muss im Hexadezimalformat #rrggbb vorliegen: " <> t
+germanFormMessage (MsgInvalidDatetimeFormat t) =
+  "Ungültige Datums- und Uhrzeitangabe, muss im Format YYYY-MM-DD(T| )HH:MM[:SS] vorliegen: "
+    <> t

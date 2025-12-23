@@ -7,15 +7,28 @@
 -- Note that a TypeRep is unique to a module in a package, so types from different modules will not conflict if they have the same name.
 --
 -- used in 'Yesod.Core.Handler.cached' and 'Yesod.Core.Handler.cachedBy'
-module Yesod.Core.TypeCache (cached, cacheGet, cacheSet, cachedBy, cacheByGet, cacheBySet, TypeMap, KeyedTypeMap) where
+module Yesod.Core.TypeCache
+  ( cached
+  , cacheGet
+  , cacheSet
+  , cachedBy
+  , cacheByGet
+  , cacheBySet
+  , TypeMap
+  , KeyedTypeMap
+  ) where
 
-import           Prelude hiding (lookup)
-import           Data.Typeable                      (Typeable, TypeRep, typeOf)
-import           Data.HashMap.Strict
-import           Data.ByteString                    (ByteString)
-import           Data.Dynamic                       (Dynamic, toDyn, fromDynamic)
+import Data.ByteString (ByteString)
+import Data.Dynamic
+  ( Dynamic
+  , fromDynamic
+  , toDyn
+  )
+import Data.HashMap.Strict
+import Data.Typeable (TypeRep, Typeable, typeOf)
+import Prelude hiding (lookup)
 
-type TypeMap      = HashMap TypeRep Dynamic
+type TypeMap = HashMap TypeRep Dynamic
 type KeyedTypeMap = HashMap (TypeRep, ByteString) Dynamic
 
 -- | avoid performing the same action multiple times.
@@ -29,33 +42,37 @@ type KeyedTypeMap = HashMap (TypeRep, ByteString) Dynamic
 -- See the original announcement: <http://www.yesodweb.com/blog/2013/03/yesod-1-2-cleaner-internals>
 --
 -- Since 1.4.0
-cached :: (Monad m, Typeable a)
-       => TypeMap
-       -> m a                       -- ^ cache the result of this action
-       -> m (Either (TypeMap, a) a) -- ^ Left is a cache miss, Right is a hit
+cached ::
+  (Monad m, Typeable a) =>
+  TypeMap ->
+  -- | cache the result of this action
+  m a ->
+  -- | Left is a cache miss, Right is a hit
+  m (Either (TypeMap, a) a)
 cached cache action = case cacheGet cache of
-    Just val -> return $ Right val
-    Nothing -> do
-        val <- action
-        return $ Left (cacheSet val cache, val)
+  Just val -> return $ Right val
+  Nothing -> do
+    val <- action
+    return $ Left (cacheSet val cache, val)
 
 -- | Retrieves a value from the cache
 --
 -- @since 1.6.10
-cacheGet :: Typeable a => TypeMap -> Maybe a
+cacheGet :: (Typeable a) => TypeMap -> Maybe a
 cacheGet cache = res
-  where
-    res = lookup (typeOf $ fromJust res) cache >>= fromDynamic
-    fromJust :: Maybe a -> a
-    fromJust = error "Yesod.Handler.cached.fromJust: Argument to typeOf was evaluated"
+ where
+  res = lookup (typeOf $ fromJust res) cache >>= fromDynamic
+  fromJust :: Maybe a -> a
+  fromJust = error "Yesod.Handler.cached.fromJust: Argument to typeOf was evaluated"
 
 -- | Sets a value in the cache
 --
 -- @since 1.6.10
-cacheSet :: (Typeable a)
-         => a
-         -> TypeMap
-         -> TypeMap
+cacheSet ::
+  (Typeable a) =>
+  a ->
+  TypeMap ->
+  TypeMap
 cacheSet v cache = insert (typeOf v) (toDyn v) cache
 
 -- | similar to 'cached'.
@@ -68,29 +85,33 @@ cacheSet v cache = insert (typeOf v) (toDyn v) cache
 -- For example, caching a lookup of a Link by a token where multiple token lookups might be performed.
 --
 -- Since 1.4.0
-cachedBy :: (Monad m, Typeable a)
-         => KeyedTypeMap
-         -> ByteString                     -- ^ a cache key
-         -> m a                            -- ^ cache the result of this action
-         -> m (Either (KeyedTypeMap, a) a) -- ^ Left is a cache miss, Right is a hit
+cachedBy ::
+  (Monad m, Typeable a) =>
+  KeyedTypeMap ->
+  -- | a cache key
+  ByteString ->
+  -- | cache the result of this action
+  m a ->
+  -- | Left is a cache miss, Right is a hit
+  m (Either (KeyedTypeMap, a) a)
 cachedBy cache k action = case cacheByGet k cache of
-    Just val -> return $ Right val
-    Nothing -> do
-        val <- action
-        return $ Left (cacheBySet k val cache, val)
+  Just val -> return $ Right val
+  Nothing -> do
+    val <- action
+    return $ Left (cacheBySet k val cache, val)
 
 -- | Retrieves a value from the keyed cache
 --
 -- @since 1.6.10
-cacheByGet :: Typeable a => ByteString -> KeyedTypeMap -> Maybe a
+cacheByGet :: (Typeable a) => ByteString -> KeyedTypeMap -> Maybe a
 cacheByGet key c = res
-  where
-    res = lookup (typeOf $ fromJust res, key) c >>= fromDynamic
-    fromJust :: Maybe a -> a
-    fromJust = error "Yesod.Handler.cached.fromJust: Argument to typeOf was evaluated"
+ where
+  res = lookup (typeOf $ fromJust res, key) c >>= fromDynamic
+  fromJust :: Maybe a -> a
+  fromJust = error "Yesod.Handler.cached.fromJust: Argument to typeOf was evaluated"
 
 -- | Sets a value in the keyed cache
 --
 -- @since 1.6.10
-cacheBySet :: Typeable a => ByteString -> a -> KeyedTypeMap -> KeyedTypeMap
+cacheBySet :: (Typeable a) => ByteString -> a -> KeyedTypeMap -> KeyedTypeMap
 cacheBySet key v cache = insert (typeOf v, key) (toDyn v) cache

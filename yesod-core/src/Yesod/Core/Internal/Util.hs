@@ -1,24 +1,30 @@
 module Yesod.Core.Internal.Util
-    ( putTime
-    , getTime
-    , formatW3
-    , formatRFC1123
-    , formatRFC822
-    , getCurrentMaxExpiresRFC1123
-    ) where
+  ( putTime
+  , getTime
+  , formatW3
+  , formatRFC1123
+  , formatRFC822
+  , getCurrentMaxExpiresRFC1123
+  ) where
 
-import           Data.Int       (Int64)
-import           Data.Serialize (Get, Put, Serialize (..))
-import qualified Data.Text      as T
-import           Data.Time      (Day (ModifiedJulianDay, toModifiedJulianDay),
-                                 DiffTime, UTCTime (..), formatTime,
-                                 getCurrentTime, addUTCTime, defaultTimeLocale)
+import Data.Int (Int64)
+import Data.Serialize (Get, Put, Serialize (..))
+import qualified Data.Text as T
+import Data.Time
+  ( Day (ModifiedJulianDay, toModifiedJulianDay)
+  , DiffTime
+  , UTCTime (..)
+  , addUTCTime
+  , defaultTimeLocale
+  , formatTime
+  , getCurrentTime
+  )
 
 putTime :: UTCTime -> Put
 putTime (UTCTime d t) =
-  let d' = fromInteger  $ toModifiedJulianDay d
+  let d' = fromInteger $ toModifiedJulianDay d
       t' = fromIntegral $ fromEnum (t / diffTimeScale)
-  in put (d' * posixDayLength_int64 + min posixDayLength_int64 t')
+   in put (d' * posixDayLength_int64 + min posixDayLength_int64 t')
 
 getTime :: Get UTCTime
 getTime = do
@@ -46,8 +52,7 @@ formatRFC1123 = T.pack . formatTime defaultTimeLocale "%a, %d %b %Y %X %Z"
 formatRFC822 :: UTCTime -> T.Text
 formatRFC822 = T.pack . formatTime defaultTimeLocale "%a, %d %b %Y %H:%M:%S %z"
 
-{- | Get the time 365 days from now in RFC 1123 format. For use as an expiry
-date on a resource that never expires. See RFC 2616 section 14.21 for details.
--}
+-- | Get the time 365 days from now in RFC 1123 format. For use as an expiry
+-- date on a resource that never expires. See RFC 2616 section 14.21 for details.
 getCurrentMaxExpiresRFC1123 :: IO T.Text
-getCurrentMaxExpiresRFC1123 = fmap (formatRFC1123 . addUTCTime (60*60*24*365)) getCurrentTime
+getCurrentMaxExpiresRFC1123 = fmap (formatRFC1123 . addUTCTime (60 * 60 * 24 * 365)) getCurrentTime

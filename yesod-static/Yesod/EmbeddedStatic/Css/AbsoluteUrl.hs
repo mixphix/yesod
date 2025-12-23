@@ -3,54 +3,55 @@
 -- | Manipulate CSS urls.
 --
 -- * Make relative urls absolute (useful when combining assets)
-module Yesod.EmbeddedStatic.Css.AbsoluteUrl (
-  -- * Absolute urls
+module Yesod.EmbeddedStatic.Css.AbsoluteUrl
+  ( -- * Absolute urls
     absoluteUrls
   , absoluteUrlsAt
   , absoluteUrlsWith
   , absCssUrlsFileProd
   , absCssUrlsProd
-) where
+  ) where
 
-import Yesod.EmbeddedStatic.Generators
-import Yesod.EmbeddedStatic.Types
-
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.Text as T
-import qualified Data.Text.Lazy as TL
-import qualified Data.Text.IO as T
-import qualified Data.Text.Lazy.Encoding as TL
 import Control.Monad ((>=>))
+import qualified Data.ByteString.Lazy as BL
 import Data.Maybe (fromMaybe)
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Encoding as TL
 import System.FilePath ((</>))
-
 import Yesod.EmbeddedStatic.Css.Util
+import Yesod.EmbeddedStatic.Types
 
 -------------------------------------------------------------------------------
 -- Generator
 -------------------------------------------------------------------------------
 
 -- | Anchors relative CSS image urls
-absCssUrlsFileProd :: FilePath -- ^ Anchor relative urls to here
-                     -> FilePath
-                     -> IO BL.ByteString
+absCssUrlsFileProd ::
+  -- | Anchor relative urls to here
+  FilePath ->
+  FilePath ->
+  IO BL.ByteString
 absCssUrlsFileProd dir file = do
-    contents <- T.readFile file
-    return $ TL.encodeUtf8 $ absCssUrlsProd dir contents
+  contents <- T.readFile file
+  return $ TL.encodeUtf8 $ absCssUrlsProd dir contents
 
-absCssUrlsProd :: FilePath -- ^ Anchor relative urls to here
-               -> T.Text
-               -> TL.Text
+absCssUrlsProd ::
+  -- | Anchor relative urls to here
+  FilePath ->
+  T.Text ->
+  TL.Text
 absCssUrlsProd dir contents =
-    let css = either error id $ parseCssUrls contents
-    in  renderCssWith toAbsoluteUrl css
-  where
-    toAbsoluteUrl (UrlReference rel) = T.concat
-        [ "url('/"
-        , (T.pack $ dir </> T.unpack rel)
-        , "')"
-        ]
-
+  let css = either error id $ parseCssUrls contents
+   in renderCssWith toAbsoluteUrl css
+ where
+  toAbsoluteUrl (UrlReference rel) =
+    T.concat
+      [ "url('/"
+      , T.pack (dir </> T.unpack rel)
+      , "')"
+      ]
 
 -- | Equivalent to passing the same string twice to 'absoluteUrlsAt'.
 absoluteUrls :: FilePath -> Generator
@@ -69,12 +70,19 @@ absoluteUrlsAt loc f = absoluteUrlsWith loc f Nothing
 -- The combination process combines files from different directories, messing up relative urls.
 -- This pre-processor makes relative urls absolute
 absoluteUrlsWith ::
-    Location -- ^ The location the CSS file should appear in the static subsite
-  -> FilePath -- ^ Path to the CSS file.
-  -> Maybe (CssGeneration -> IO BL.ByteString) -- ^ Another filter function run after this one (for example @return . yuiCSS . cssContent@) or other CSS filter that runs after this filter.
-                     -> Generator
+  -- | The location the CSS file should appear in the static subsite
+  Location ->
+  -- | Path to the CSS file.
+  FilePath ->
+  -- | Another filter function run after this one (for example @return . yuiCSS . cssContent@) or other CSS filter that runs after this filter.
+  Maybe (CssGeneration -> IO BL.ByteString) ->
+  Generator
 absoluteUrlsWith loc file mpostFilter =
-    return [ cssProductionFilter (absCssUrlsFileProd loc >=> postFilter . mkCssGeneration loc file) loc file
+  return
+    [ cssProductionFilter
+        (absCssUrlsFileProd loc >=> postFilter . mkCssGeneration loc file)
+        loc
+        file
     ]
-  where
-    postFilter = fromMaybe (return . cssContent) mpostFilter
+ where
+  postFilter = fromMaybe (return . cssContent) mpostFilter

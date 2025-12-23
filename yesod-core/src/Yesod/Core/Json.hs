@@ -2,74 +2,88 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Yesod.Core.Json
-    ( -- * Convert from a JSON value
-      defaultLayoutJson
-    , jsonToRepJson
-    , returnJson
-    , returnJsonEncoding
-    , provideJson
+  ( -- * Convert from a JSON value
+    defaultLayoutJson
+  , jsonToRepJson
+  , returnJson
+  , returnJsonEncoding
+  , provideJson
 
-      -- * Convert to a JSON value
-    , parseCheckJsonBody
-    , parseInsecureJsonBody
-    , requireCheckJsonBody
-    , requireInsecureJsonBody
-      -- ** Deprecated JSON conversion
-    , parseJsonBody
-    , parseJsonBody_
-    , requireJsonBody
+    -- * Convert to a JSON value
+  , parseCheckJsonBody
+  , parseInsecureJsonBody
+  , requireCheckJsonBody
+  , requireInsecureJsonBody
 
-      -- * Produce JSON values
-    , J.Value (..)
-    , J.ToJSON (..)
-    , J.FromJSON (..)
-    , array
-    , object
-    , (.=)
-    , (J..:)
+    -- ** Deprecated JSON conversion
+  , parseJsonBody
+  , parseJsonBody_
+  , requireJsonBody
 
-      -- * Convenience functions
-    , jsonOrRedirect
-    , jsonEncodingOrRedirect
-    , acceptsJson
+    -- * Produce JSON values
+  , J.Value (..)
+  , J.ToJSON (..)
+  , J.FromJSON (..)
+  , array
+  , object
+  , (.=)
+  , (J..:)
 
-      -- * Checking if data is JSON
-    , contentTypeHeaderIsJson
-    ) where
+    -- * Convenience functions
+  , jsonOrRedirect
+  , jsonEncodingOrRedirect
+  , acceptsJson
 
-import Yesod.Core.Handler (HandlerFor, getRequest, invalidArgs, redirect, selectRep, provideRep, rawRequestBody, ProvidedRep, lookupHeader)
+    -- * Checking if data is JSON
+  , contentTypeHeaderIsJson
+  ) where
+
+import Control.Monad (liftM)
 import Control.Monad.Trans.Writer (Writer)
-import Data.Monoid (Endo)
-import Yesod.Core.Content (TypedContent)
-import Yesod.Core.Types (reqAccept)
-import Yesod.Core.Class.Yesod (defaultLayout, Yesod)
-import Yesod.Core.Class.Handler
-import Yesod.Core.Widget (WidgetFor)
-import Yesod.Routes.Class
+import Data.Aeson (object, (.=))
 import qualified Data.Aeson as J
 import qualified Data.Aeson.Parser as JP
-import Data.Aeson ((.=), object)
+import qualified Data.ByteString.Char8 as B8
+import Data.Conduit
 import Data.Conduit.Attoparsec (sinkParser)
+import Data.Conduit.Lift
+import Data.Maybe (listToMaybe)
+import Data.Monoid (Endo)
 import Data.Text (pack)
 import qualified Data.Vector as V
-import Data.Conduit
-import Data.Conduit.Lift
-import qualified Data.ByteString.Char8 as B8
-import Data.Maybe (listToMaybe)
-import Control.Monad (liftM)
+import Yesod.Core.Class.Handler
+import Yesod.Core.Class.Yesod (Yesod, defaultLayout)
+import Yesod.Core.Content (TypedContent)
+import Yesod.Core.Handler
+  ( HandlerFor
+  , ProvidedRep
+  , getRequest
+  , invalidArgs
+  , lookupHeader
+  , provideRep
+  , rawRequestBody
+  , redirect
+  , selectRep
+  )
+import Yesod.Core.Types (reqAccept)
+import Yesod.Core.Widget (WidgetFor)
+import Yesod.Routes.Class
 
 -- | Provide both an HTML and JSON representation for a piece of
 -- data, using the default layout for the HTML output
 -- ('defaultLayout').
 --
 -- @since 0.3.0
-defaultLayoutJson :: (Yesod site, J.ToJSON a)
-                  => WidgetFor site ()  -- ^ HTML
-                  -> HandlerFor site a  -- ^ JSON
-                  -> HandlerFor site TypedContent
+defaultLayoutJson ::
+  (Yesod site, J.ToJSON a) =>
+  -- | HTML
+  WidgetFor site () ->
+  -- | JSON
+  HandlerFor site a ->
+  HandlerFor site TypedContent
 defaultLayoutJson w json = selectRep $ do
-    provideRep $ defaultLayout w
-    provideRep $ fmap J.toEncoding json
+  provideRep $ defaultLayout w
+  provideRep $ fmap J.toEncoding json
 
 -- | Wraps a data type in a 'RepJson'.  The data type must
 -- support conversion to JSON via 'J.ToJSON'.
@@ -113,10 +127,10 @@ parseJsonBody = parseInsecureJsonBody
 -- @since 1.6.11
 parseInsecureJsonBody :: (MonadHandler m, J.FromJSON a) => m (J.Result a)
 parseInsecureJsonBody = do
-    eValue <- runConduit $ rawRequestBody .| runCatchC (sinkParser JP.value')
-    return $ case eValue of
-        Left e -> J.Error $ show e
-        Right value -> J.fromJSON value
+  eValue <- runConduit $ rawRequestBody .| runCatchC (sinkParser JP.value')
+  return $ case eValue of
+    Left e -> J.Error $ show e
+    Right value -> J.fromJSON value
 
 -- | Parse the request body to a data type as a JSON value.  The
 -- data type must support conversion from JSON via 'J.FromJSON'.
@@ -136,10 +150,10 @@ parseInsecureJsonBody = do
 -- @since 0.3.0
 parseCheckJsonBody :: (MonadHandler m, J.FromJSON a) => m (J.Result a)
 parseCheckJsonBody = do
-    mct <- lookupHeader "content-type"
-    case fmap contentTypeHeaderIsJson mct of
-        Just True -> parseInsecureJsonBody
-        _ -> return $ J.Error $ "Non-JSON content type: " ++ show mct
+  mct <- lookupHeader "content-type"
+  case fmap contentTypeHeaderIsJson mct of
+    Just True -> parseInsecureJsonBody
+    _ -> return $ J.Error $ "Non-JSON content type: " ++ show mct
 
 -- | Same as 'parseInsecureJsonBody', but return an invalid args response on a parse
 -- error.
@@ -159,22 +173,22 @@ requireJsonBody = requireInsecureJsonBody
 -- @since 1.6.11
 requireInsecureJsonBody :: (MonadHandler m, J.FromJSON a) => m a
 requireInsecureJsonBody = do
-    ra <- parseInsecureJsonBody
-    case ra of
-        J.Error s -> invalidArgs [pack s]
-        J.Success a -> return a
+  ra <- parseInsecureJsonBody
+  case ra of
+    J.Error s -> invalidArgs [pack s]
+    J.Success a -> return a
 
 -- | Same as 'parseCheckJsonBody', but return an invalid args response on a parse
 -- error.
 requireCheckJsonBody :: (MonadHandler m, J.FromJSON a) => m a
 requireCheckJsonBody = do
-    ra <- parseCheckJsonBody
-    case ra of
-        J.Error s -> invalidArgs [pack s]
-        J.Success a -> return a
+  ra <- parseCheckJsonBody
+  case ra of
+    J.Error s -> invalidArgs [pack s]
+    J.Success a -> return a
 
 -- | Convert a list of values to an 'J.Array'.
-array :: J.ToJSON a => [a] -> J.Value
+array :: (J.ToJSON a) => [a] -> J.Value
 array = J.Array . V.fromList . map J.toJSON
 
 -- | jsonOrRedirect simplifies the scenario where a POST handler sends a different
@@ -184,10 +198,13 @@ array = J.Array . V.fromList . map J.toJSON
 --     @application\/json@ (e.g. AJAX, see 'acceptsJSON').
 --
 --     2. 3xx otherwise, following the PRG pattern.
-jsonOrRedirect :: (MonadHandler m, J.ToJSON a)
-               => Route (HandlerSite m) -- ^ Redirect target
-               -> a            -- ^ Data to send via JSON
-               -> m J.Value
+jsonOrRedirect ::
+  (MonadHandler m, J.ToJSON a) =>
+  -- | Redirect target
+  Route (HandlerSite m) ->
+  -- | Data to send via JSON
+  a ->
+  m J.Value
 jsonOrRedirect = jsonOrRedirect' J.toJSON
 
 -- | jsonEncodingOrRedirect simplifies the scenario where a POST handler sends a different
@@ -198,29 +215,38 @@ jsonOrRedirect = jsonOrRedirect' J.toJSON
 --
 --     2. 3xx otherwise, following the PRG pattern.
 -- @since 1.4.21
-jsonEncodingOrRedirect :: (MonadHandler m, J.ToJSON a)
-            => Route (HandlerSite m) -- ^ Redirect target
-            -> a            -- ^ Data to send via JSON
-            -> m J.Encoding
+jsonEncodingOrRedirect ::
+  (MonadHandler m, J.ToJSON a) =>
+  -- | Redirect target
+  Route (HandlerSite m) ->
+  -- | Data to send via JSON
+  a ->
+  m J.Encoding
 jsonEncodingOrRedirect = jsonOrRedirect' J.toEncoding
 
-jsonOrRedirect' :: MonadHandler m
-            => (a -> b)
-            -> Route (HandlerSite m) -- ^ Redirect target
-            -> a            -- ^ Data to send via JSON
-            -> m b
+jsonOrRedirect' ::
+  (MonadHandler m) =>
+  (a -> b) ->
+  -- | Redirect target
+  Route (HandlerSite m) ->
+  -- | Data to send via JSON
+  a ->
+  m b
 jsonOrRedirect' f r j = do
-    q <- acceptsJson
-    if q then return (f j)
-         else redirect r
+  q <- acceptsJson
+  if q
+    then return (f j)
+    else redirect r
 
 -- | Returns @True@ if the client prefers @application\/json@ as
 -- indicated by the @Accept@ HTTP header.
-acceptsJson :: MonadHandler m => m Bool
-acceptsJson =  (maybe False ((== "application/json") . B8.takeWhile (/= ';'))
-            .  listToMaybe
-            .  reqAccept)
-           `liftM` getRequest
+acceptsJson :: (MonadHandler m) => m Bool
+acceptsJson =
+  ( maybe False ((== "application/json") . B8.takeWhile (/= ';'))
+      . listToMaybe
+      . reqAccept
+  )
+    `liftM` getRequest
 
 -- | Given the @Content-Type@ header, returns if it is JSON.
 --

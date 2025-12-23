@@ -4,8 +4,6 @@
 {-# LANGUAGE TypeOperators #-}
 
 -- | Helper functions for creating forms when using <http://getbootstrap.com/ Bootstrap 3>.
---
-
 module Yesod.Form.Bootstrap3
   ( -- * Example: Rendering a basic form
     -- $example
@@ -15,8 +13,9 @@ module Yesod.Form.Bootstrap3
 
     -- * Rendering forms
     renderBootstrap3
-  , BootstrapFormLayout(..)
-  , BootstrapGridOptions(..)
+  , BootstrapFormLayout (..)
+  , BootstrapGridOptions (..)
+
     -- * Field settings
     -- $fieldSettings
   , bfs
@@ -24,29 +23,34 @@ module Yesod.Form.Bootstrap3
   , withAutofocus
   , withLargeInput
   , withSmallInput
+
     -- * Submit button
   , bootstrapSubmit
   , mbootstrapSubmit
-  , BootstrapSubmit(..)
+  , BootstrapSubmit (..)
   ) where
 
 import Control.Arrow (second)
 import Control.Monad (liftM)
+import Data.String (IsString (..))
 import Data.Text (Text)
-import Data.String (IsString(..))
 import qualified Text.Blaze.Internal as Blaze
 import Yesod.Core
-import Yesod.Form.Types
 import Yesod.Form.Functions
+import Yesod.Form.Types
 
 -- | Create a new 'FieldSettings' with the @form-control@ class that is
 -- required by Bootstrap v3.
 --
 -- Since: yesod-form 1.3.8
-bfs :: RenderMessage site msg => msg -> FieldSettings site
+bfs :: (RenderMessage site msg) => msg -> FieldSettings site
 bfs msg =
-    FieldSettings (SomeMessage msg) Nothing Nothing Nothing [("class", "form-control")]
-
+  FieldSettings
+    (SomeMessage msg)
+    Nothing
+    Nothing
+    Nothing
+    [("class", "form-control")]
 
 -- | Add a placeholder attribute to a field.  If you need i18n
 -- for the placeholder, currently you\'ll need to do a hack and
@@ -54,44 +58,44 @@ bfs msg =
 --
 -- Since: yesod-form 1.3.8
 withPlaceholder :: Text -> FieldSettings site -> FieldSettings site
-withPlaceholder placeholder fs = fs { fsAttrs = newAttrs }
-    where newAttrs = ("placeholder", placeholder) : fsAttrs fs
-
+withPlaceholder placeholder fs = fs{fsAttrs = newAttrs}
+ where
+  newAttrs = ("placeholder", placeholder) : fsAttrs fs
 
 -- | Add an autofocus attribute to a field.
 --
 -- Since: yesod-form 1.3.8
 withAutofocus :: FieldSettings site -> FieldSettings site
-withAutofocus fs = fs { fsAttrs = newAttrs }
-    where newAttrs = ("autofocus", "autofocus") : fsAttrs fs
-
+withAutofocus fs = fs{fsAttrs = newAttrs}
+ where
+  newAttrs = ("autofocus", "autofocus") : fsAttrs fs
 
 -- | Add the @input-lg@ CSS class to a field.
 --
 -- Since: yesod-form 1.3.8
 withLargeInput :: FieldSettings site -> FieldSettings site
-withLargeInput fs = fs { fsAttrs = newAttrs }
-    where newAttrs = addClass "input-lg" (fsAttrs fs)
-
+withLargeInput fs = fs{fsAttrs = newAttrs}
+ where
+  newAttrs = addClass "input-lg" (fsAttrs fs)
 
 -- | Add the @input-sm@ CSS class to a field.
 --
 -- Since: yesod-form 1.3.8
 withSmallInput :: FieldSettings site -> FieldSettings site
-withSmallInput fs = fs { fsAttrs = newAttrs }
-    where newAttrs = addClass "input-sm" (fsAttrs fs)
-
+withSmallInput fs = fs{fsAttrs = newAttrs}
+ where
+  newAttrs = addClass "input-sm" (fsAttrs fs)
 
 -- | How many bootstrap grid columns should be taken (see
 -- 'BootstrapFormLayout').
 --
 -- Since: yesod-form 1.3.8
-data BootstrapGridOptions =
-    ColXs !Int
+data BootstrapGridOptions
+  = ColXs !Int
   | ColSm !Int
   | ColMd !Int
   | ColLg !Int
-    deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show)
 
 toColumn :: BootstrapGridOptions -> String
 toColumn (ColXs 0) = ""
@@ -118,38 +122,44 @@ addGO (ColXs a) (ColXs b) = ColXs (a + b)
 addGO (ColSm a) (ColSm b) = ColSm (a + b)
 addGO (ColMd a) (ColMd b) = ColMd (a + b)
 addGO (ColLg a) (ColLg b) = ColLg (a + b)
-addGO a b     | a > b = addGO b a
+addGO a b | a > b = addGO b a
 addGO (ColXs a) other = addGO (ColSm a) other
 addGO (ColSm a) other = addGO (ColMd a) other
 addGO (ColMd a) other = addGO (ColLg a) other
-addGO (ColLg _) _     = error "Yesod.Form.Bootstrap.addGO: never here"
-
+addGO (ColLg _) _ = error "Yesod.Form.Bootstrap.addGO: never here"
 
 -- | The layout used for the bootstrap form.
 --
 -- Since: yesod-form 1.3.8
-data BootstrapFormLayout =
-    BootstrapBasicForm -- ^ A form with labels and inputs listed vertically. See <http://getbootstrap.com/css/#forms-example>
-  | BootstrapInlineForm -- ^ A form whose @\<inputs>@ are laid out horizontally (displayed as @inline-block@). For this layout, @\<label>@s are still added to the HTML, but are hidden from display. When using this layout, you must add the @form-inline@ class to your form tag. See <http://getbootstrap.com/css/#forms-inline>
+data BootstrapFormLayout
+  = -- | A form with labels and inputs listed vertically. See <http://getbootstrap.com/css/#forms-example>
+    BootstrapBasicForm
+  | -- | A form whose @\<inputs>@ are laid out horizontally (displayed as @inline-block@). For this layout, @\<label>@s are still added to the HTML, but are hidden from display. When using this layout, you must add the @form-inline@ class to your form tag. See <http://getbootstrap.com/css/#forms-inline>
+    BootstrapInlineForm
   | BootstrapHorizontalForm
-      { bflLabelOffset :: !BootstrapGridOptions -- ^ The left <http://getbootstrap.com/css/#grid-offsetting offset> of the @\<label>@.
-      , bflLabelSize   :: !BootstrapGridOptions -- ^ The number of grid columns the @\<label>@ should use.
-      , bflInputOffset :: !BootstrapGridOptions -- ^ The left <http://getbootstrap.com/css/#grid-offsetting offset> of the @\<input>@ from its @\<label>@.
-      , bflInputSize   :: !BootstrapGridOptions -- ^ The number of grid columns the @\<input>@ should use.
-      } -- ^ A form laid out using the Bootstrap grid, with labels in the left column and inputs on the right. When using this layout, you must add the @form-horizontal@ class to your form tag. Bootstrap requires additional markup for the submit button for horizontal forms; you can use 'bootstrapSubmit' in your form or write the markup manually. See <http://getbootstrap.com/css/#forms-horizontal>
-    deriving (Show)
-
+      { bflLabelOffset :: !BootstrapGridOptions
+      -- ^ The left <http://getbootstrap.com/css/#grid-offsetting offset> of the @\<label>@.
+      , bflLabelSize :: !BootstrapGridOptions
+      -- ^ The number of grid columns the @\<label>@ should use.
+      , bflInputOffset :: !BootstrapGridOptions
+      -- ^ The left <http://getbootstrap.com/css/#grid-offsetting offset> of the @\<input>@ from its @\<label>@.
+      , bflInputSize :: !BootstrapGridOptions
+      -- ^ The number of grid columns the @\<input>@ should use.
+      }
+  -- \^ A form laid out using the Bootstrap grid, with labels in the left column and inputs on the right. When using this layout, you must add the @form-horizontal@ class to your form tag. Bootstrap requires additional markup for the submit button for horizontal forms; you can use 'bootstrapSubmit' in your form or write the markup manually. See <http://getbootstrap.com/css/#forms-horizontal>
+  deriving (Show)
 
 -- | Render the given form using Bootstrap v3 conventions.
 --
 -- Since: yesod-form 1.3.8
-renderBootstrap3 :: Monad m => BootstrapFormLayout -> FormRender m a
+renderBootstrap3 :: (Monad m) => BootstrapFormLayout -> FormRender m a
 renderBootstrap3 formLayout aform fragment = do
-    (res, views') <- aFormToForm aform
-    let views = views' []
-        has (Just _) = True
-        has Nothing  = False
-        widget = [whamlet|
+  (res, views') <- aFormToForm aform
+  let views = views' []
+      has (Just _) = True
+      has Nothing = False
+      widget =
+        [whamlet|
             $newline never
             #{fragment}
             $forall view <- views
@@ -176,35 +186,34 @@ renderBootstrap3 formLayout aform fragment = do
                         ^{fvInput view}
                         ^{helpWidget view}
                 |]
-    return (res, widget)
-
+  return (res, widget)
 
 -- | (Internal) Render a help widget for tooltips and errors.
 helpWidget :: FieldView site -> WidgetFor site ()
-helpWidget view = [whamlet|
+helpWidget view =
+  [whamlet|
     $maybe tt <- fvTooltip view
       <span .help-block>#{tt}
     $maybe err <- fvErrors view
       <span .help-block .error-block>#{err}
 |]
 
-
 -- | How the 'bootstrapSubmit' button should be rendered.
 --
 -- Since: yesod-form 1.3.8
-data BootstrapSubmit msg =
-    BootstrapSubmit
-        { bsValue   :: msg
-          -- ^ The text of the submit button.
-        , bsClasses :: Text
-          -- ^ Classes added to the @\<button>@.
-        , bsAttrs   :: [(Text, Text)]
-          -- ^ Attributes added to the @\<button>@.
-        } deriving (Show)
+data BootstrapSubmit msg
+  = BootstrapSubmit
+  { bsValue :: msg
+  -- ^ The text of the submit button.
+  , bsClasses :: Text
+  -- ^ Classes added to the @\<button>@.
+  , bsAttrs :: [(Text, Text)]
+  -- ^ Attributes added to the @\<button>@.
+  }
+  deriving (Show)
 
-instance IsString msg => IsString (BootstrapSubmit msg) where
-    fromString msg = BootstrapSubmit (fromString msg) " btn-default " []
-
+instance (IsString msg) => IsString (BootstrapSubmit msg) where
+  fromString msg = BootstrapSubmit (fromString msg) " btn-default " []
 
 -- | A Bootstrap v3 submit button disguised as a field for
 -- convenience.  For example, if your form currently is:
@@ -225,31 +234,32 @@ instance IsString msg => IsString (BootstrapSubmit msg) where
 -- layout.
 --
 -- Since: yesod-form 1.3.8
-bootstrapSubmit
-    :: (RenderMessage site msg, HandlerSite m ~ site, MonadHandler m)
-    => BootstrapSubmit msg -> AForm m ()
+bootstrapSubmit ::
+  (RenderMessage site msg, HandlerSite m ~ site, MonadHandler m) =>
+  BootstrapSubmit msg -> AForm m ()
 bootstrapSubmit = formToAForm . liftM (second return) . mbootstrapSubmit
-
 
 -- | Same as 'bootstrapSubmit' but for monadic forms.  This isn't
 -- as useful since you're not going to use 'renderBootstrap3'
 -- anyway.
 --
 -- Since: yesod-form 1.3.8
-mbootstrapSubmit
-    :: (RenderMessage site msg, HandlerSite m ~ site, MonadHandler m)
-    => BootstrapSubmit msg -> MForm m (FormResult (), FieldView site)
+mbootstrapSubmit ::
+  (RenderMessage site msg, HandlerSite m ~ site, MonadHandler m) =>
+  BootstrapSubmit msg -> MForm m (FormResult (), FieldView site)
 mbootstrapSubmit (BootstrapSubmit msg classes attrs) =
-    let res = FormSuccess ()
-        widget = [whamlet|<button class="btn #{classes}" type=submit *{attrs}>_{msg}|]
-        fv  = FieldView { fvLabel    = ""
-                        , fvTooltip  = Nothing
-                        , fvId       = bootstrapSubmitId
-                        , fvInput    = widget
-                        , fvErrors   = Nothing
-                        , fvRequired = False }
-    in return (res, fv)
-
+  let res = FormSuccess ()
+      widget = [whamlet|<button class="btn #{classes}" type=submit *{attrs}>_{msg}|]
+      fv =
+        FieldView
+          { fvLabel = ""
+          , fvTooltip = Nothing
+          , fvId = bootstrapSubmitId
+          , fvInput = widget
+          , fvErrors = Nothing
+          , fvRequired = False
+          }
+   in return (res, fv)
 
 -- | A royal hack.  Magic id used to identify whether a field
 -- should have no label.  A valid HTML4 id which is probably not

@@ -10,12 +10,14 @@
 
 module Yesod.Auth.Routes where
 
-import Yesod.Core
 import Data.Text (Text)
+import Yesod.Core
 
 data Auth = Auth
 
-mkYesodSubData "Auth" [parseRoutes|
+mkYesodSubData
+  "Auth"
+  [parseRoutes|
 /check                 CheckR      GET
 /login                 LoginR      GET
 /logout                LogoutR     GET POST

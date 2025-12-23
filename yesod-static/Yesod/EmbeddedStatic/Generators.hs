@@ -6,8 +6,8 @@
 -- to embed into the subsite.  This module contains several basic generators,
 -- but the design of generators and entries is such that it is straightforward
 -- to make custom generators for your own specific purposes, see <#g:4 this section>.
-module Yesod.EmbeddedStatic.Generators (
-  -- * Generators
+module Yesod.EmbeddedStatic.Generators
+  ( -- * Generators
     Location
   , embedFile
   , embedFileAt
@@ -16,7 +16,7 @@ module Yesod.EmbeddedStatic.Generators (
   , concatFiles
   , concatFilesWith
 
-  -- * Compression options for 'concatFilesWith'
+    -- * Compression options for 'concatFilesWith'
   , jasmine
   , uglifyJs
   , yuiJavascript
@@ -25,34 +25,38 @@ module Yesod.EmbeddedStatic.Generators (
   , compressTool
   , tryCompressTools
 
-  -- * Util
+    -- * Util
   , pathToName
 
-  -- * Custom Generators
+    -- * Custom Generators
+    -- $example
+  ) where
 
-  -- $example
-) where
-
-import Control.Exception (try, SomeException)
+import Conduit
+import Control.Concurrent.Async (Concurrently (..))
+import Control.Exception (SomeException, try)
 import Control.Monad (forM, when)
-import Data.Char (isLower)
-import Data.Default (def)
-import Data.Maybe (isNothing)
-import Language.Haskell.TH
-import Network.Mime (defaultMimeLookup)
-import System.Directory (doesDirectoryExist, getDirectoryContents, findExecutable)
-import System.FilePath ((</>))
-import Text.Jasmine (minifym)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
-import Conduit
-import qualified Data.Text as T
-import qualified System.Process as Proc
-import System.Exit (ExitCode (ExitSuccess))
-import Control.Concurrent.Async (Concurrently (..))
-import System.IO (hClose)
+import Data.Char (isAsciiLower, isAsciiUpper, isDigit, isLower)
+import Data.Default (def)
 import Data.List (sort)
+import Data.Maybe (isNothing)
+import qualified Data.Text as T
+import Language.Haskell.TH
+import Network.Mime (defaultMimeLookup)
+import System.Directory
+  ( doesDirectoryExist
+  , findExecutable
+  , getDirectoryContents
+  )
+import System.Exit (ExitCode (ExitSuccess))
+import System.FilePath ((</>))
+import System.IO (hClose)
+import qualified System.Process as Proc
+import Text.Jasmine (minifym)
 
+import Data.Either (fromRight)
 import Yesod.EmbeddedStatic.Types
 
 -- | Embed a single file.  Equivalent to passing the same string twice to 'embedFileAt'.
@@ -67,21 +71,29 @@ embedFile f = embedFileAt f f
 --   distributed along with the executable.
 embedFileAt :: Location -> FilePath -> Generator
 embedFileAt loc f = do
-    let mime = defaultMimeLookup $ T.pack f
-    let entry = def {
-                    ebHaskellName = Just $ pathToName loc
-                  , ebLocation = loc
-                  , ebMimeType = mime
-                  , ebProductionContent = fmap BL.fromStrict (BS.readFile f)
-                  , ebDevelReload = [| fmap BL.fromStrict
-                                       (BS.readFile $(litE $ stringL f)) |]
-                  }
-    return [entry]
+  let mime = defaultMimeLookup $ T.pack f
+  let entry =
+        def
+          { ebHaskellName = Just $ pathToName loc
+          , ebLocation = loc
+          , ebMimeType = mime
+          , ebProductionContent = fmap BL.fromStrict (BS.readFile f)
+          , ebDevelReload =
+              [|
+                fmap
+                  BL.fromStrict
+                  (BS.readFile $(litE $ stringL f))
+                |]
+          }
+  pure [entry]
 
 -- | List all files recursively in a directory
-getRecursiveContents :: Location -- ^ The directory to search
-                     -> FilePath   -- ^ The prefix to add to the filenames
-                     -> IO [(Location,FilePath)]
+getRecursiveContents ::
+  -- | The directory to search
+  Location ->
+  -- | The prefix to add to the filenames
+  FilePath ->
+  IO [(Location, FilePath)]
 getRecursiveContents prefix topdir = do
   names <- sort <$> getDirectoryContents topdir
   let properNames = filter (`notElem` [".", ".."]) names
@@ -91,8 +103,8 @@ getRecursiveContents prefix topdir = do
     isDirectory <- doesDirectoryExist path
     if isDirectory
       then getRecursiveContents loc path
-      else return [(loc, path)]
-  return (concat paths)
+      else pure [(loc, path)]
+  pure (concat paths)
 
 -- | Embed all files in a directory into the static subsite.
 --
@@ -133,13 +145,13 @@ embedDir = embedDirAt ""
 --   variables for the new files.
 embedDirAt :: Location -> FilePath -> Generator
 embedDirAt loc dir = do
-    files <- runIO $ getRecursiveContents loc dir
-    concat <$> mapM (uncurry embedFileAt) files
+  files <- runIO $ getRecursiveContents loc dir
+  concat <$> mapM (uncurry embedFileAt) files
 
--- | Concatinate a list of files and embed it at the location.  Equivalent to passing @return@ to
+-- | Concatinate a list of files and embed it at the location.  Equivalent to passing @pure@ to
 --   'concatFilesWith'.
 concatFiles :: Location -> [FilePath] -> Generator
-concatFiles loc files = concatFilesWith loc return files
+concatFiles loc = concatFilesWith loc pure
 
 -- | Concatinate a list of files into a single 'BL.ByteString', run the resulting content through the given
 --   function, embed it at the given location, and create a haskell variable name for the route based on
@@ -148,23 +160,28 @@ concatFiles loc files = concatFilesWith loc return files
 --   The processing function is only run when compiling for production, and the processing function is
 --   executed at compile time.  During development, on every request the files listed are reloaded,
 --   concatenated, and served as a single resource at the given location without being processed.
-concatFilesWith :: Location -> (BL.ByteString -> IO BL.ByteString) -> [FilePath] -> Generator
+concatFilesWith ::
+  Location -> (BL.ByteString -> IO BL.ByteString) -> [FilePath] -> Generator
 concatFilesWith loc process files = do
-    let load = do putStrLn $ "Creating " ++ loc
-                  BL.concat <$> mapM BL.readFile files >>= process
-        expFiles = listE $ map (litE . stringL) files
-        expCt = [| BL.concat <$> mapM BL.readFile $expFiles |]
-        mime = defaultMimeLookup $ T.pack loc
-    return [def { ebHaskellName = Just $ pathToName loc
-                , ebLocation = loc
-                , ebMimeType = mime
-                , ebProductionContent = load
-                , ebDevelReload = expCt
-                }]
+  let load = do
+        putStrLn $ "Creating " ++ loc
+        mapM BL.readFile files >>= process . BL.concat
+      expFiles = listE $ map (litE . stringL) files
+      expCt = [|BL.concat <$> mapM BL.readFile $expFiles|]
+      mime = defaultMimeLookup $ T.pack loc
+  pure
+    [ def
+        { ebHaskellName = Just $ pathToName loc
+        , ebLocation = loc
+        , ebMimeType = mime
+        , ebProductionContent = load
+        , ebDevelReload = expCt
+        }
+    ]
 
 -- | Convienient rexport of 'minifym' with a type signature to work with 'concatFilesWith'.
 jasmine :: BL.ByteString -> IO BL.ByteString
-jasmine ct = return $ either (const ct) id $ minifym ct
+jasmine ct = pure $ fromRight ct $ minifym ct
 
 -- | Use <https://github.com/mishoo/UglifyJS2 UglifyJS2> to compress javascript.
 -- Assumes @uglifyjs@ is located in the path and uses options @[\"-m\", \"-c\"]@
@@ -196,28 +213,35 @@ closureJs = compressTool "closure" []
 
 -- | Helper to convert a process into a compression function.  The process
 -- should be set up to take input from standard input and write to standard output.
-compressTool :: FilePath -- ^ program
-             -> [String] -- ^ options
-             -> BL.ByteString -> IO BL.ByteString
+compressTool ::
+  -- | program
+  FilePath ->
+  -- | options
+  [String] ->
+  BL.ByteString ->
+  IO BL.ByteString
 compressTool f opts ct = do
-    mpath <- findExecutable f
-    when (isNothing mpath) $
-        fail $ "Unable to find " ++ f
-    let p = (Proc.proc f opts)
-                { Proc.std_in = Proc.CreatePipe
-                , Proc.std_out = Proc.CreatePipe
-                }
-    (Just hin, Just hout, _, ph) <- Proc.createProcess p
-    (compressed, (), code) <- runConcurrently $ (,,)
+  mpath <- findExecutable f
+  when (isNothing mpath) $
+    fail $
+      "Unable to find " ++ f
+  let p =
+        (Proc.proc f opts)
+          { Proc.std_in = Proc.CreatePipe
+          , Proc.std_out = Proc.CreatePipe
+          }
+  (Just hin, Just hout, _, ph) <- Proc.createProcess p
+  (compressed, (), code) <-
+    runConcurrently $
+      (,,)
         <$> Concurrently (runConduit $ sourceHandle hout .| sinkLazy)
         <*> Concurrently (BL.hPut hin ct >> hClose hin)
         <*> Concurrently (Proc.waitForProcess ph)
-    if code == ExitSuccess
-        then do
-            putStrLn $ "Compressed successfully with " ++ f
-            return compressed
-        else error $ "compressTool: compression failed with " ++ f
-
+  if code == ExitSuccess
+    then do
+      putStrLn $ "Compressed successfully with " ++ f
+      pure compressed
+    else error $ "compressTool: compression failed with " ++ f
 
 -- | Try a list of processing functions (like the compressions above) one by one until
 -- one succeeds (does not raise an exception).  Once a processing function succeeds,
@@ -225,35 +249,35 @@ compressTool f opts ct = do
 -- returned unprocessed.  This is helpful if you are distributing
 -- code on hackage and do not know what compressors the user will have installed.  You
 -- can list several and they will be tried in order until one succeeds.
-tryCompressTools :: [BL.ByteString -> IO BL.ByteString] -> BL.ByteString -> IO BL.ByteString
-tryCompressTools [] x = return x
-tryCompressTools (p:ps) x = do
-    mres <- try $ p x
-    case mres of
-        Left (err :: SomeException) -> do
-            putStrLn $ show err
-            tryCompressTools ps x
-        Right res -> return res
+tryCompressTools ::
+  [BL.ByteString -> IO BL.ByteString] -> BL.ByteString -> IO BL.ByteString
+tryCompressTools [] x = pure x
+tryCompressTools (p : ps) x = do
+  mres <- try $ p x
+  case mres of
+    Left (err :: SomeException) -> do
+      print err
+      tryCompressTools ps x
+    Right res -> pure res
 
 -- | Clean up a path to make it a valid haskell name by replacing all non-letters
 --   and non-numbers by underscores.  In addition, if the path starts with a capital
 --   letter or number add an initial underscore.
 pathToName :: FilePath -> Name
 pathToName f = routeName
-    where
-      replace c
-        | 'A' <= c && c <= 'Z' = c
-        | 'a' <= c && c <= 'z' = c
-        | '0' <= c && c <= '9' = c
-        | otherwise = '_'
-      name = map replace f
-      routeName = mkName $
-            case name of
-                [] -> error "null-named file"
-                n : _
-                    | isLower n -> name
-                    | otherwise -> '_' : name
-
+ where
+  replace c
+    | isAsciiUpper c = c
+    | isAsciiLower c = c
+    | isDigit c = c
+    | otherwise = '_'
+  name = map replace f
+  routeName = mkName $
+    case name of
+      [] -> error "null-named file"
+      n : _
+        | isLower n -> name
+        | otherwise -> '_' : name
 
 -- $example
 -- Here is an example of creating your own custom generator.
@@ -274,12 +298,12 @@ pathToName f = routeName
 -- >getTime :: IO BL.ByteString
 -- >getTime = do
 -- >    t <- getCurrentTime
--- >    return $ encode $
+-- >    pure $ encode $
 -- >        object [ "compile_time" .= show t ]
 -- >
 -- >timeGenerator :: Location -> Generator
 -- >timeGenerator loc =
--- >    return $ [def
+-- >    pure $ [def
 -- >        { ebHaskellName = Just $ pathToName loc
 -- >        , ebLocation    = loc
 -- >        , ebMimeType    = "application/json"

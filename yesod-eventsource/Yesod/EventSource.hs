@@ -89,7 +89,7 @@ pollingEventSource initial act = do
       -- when we the connection should be closed.
       joinEvents (ev:evs) acc =
         case ES.eventToBuilder ev of
-          Just b  -> joinEvents evs (acc `mappend` b)
+          Just b  -> joinEvents evs (acc <> b)
           Nothing -> (fst $ joinEvents [] acc, False)
       joinEvents [] acc = (acc, True)
 

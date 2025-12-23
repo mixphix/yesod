@@ -13,28 +13,31 @@
 -- <http://hackage.haskell.org/package/yesod-form-richtext yesod-form-richtext>
 -- package.
 module Yesod.Form.Nic
-    ( YesodNic (..)
-    , nicHtmlField
-    ) where
+  ( YesodNic (..)
+  , nicHtmlField
+  ) where
 
-import Yesod.Core
-import Yesod.Form
+import Data.Maybe (listToMaybe)
+import Data.Text (Text, pack)
+import Text.Blaze.Html.Renderer.String (renderHtml)
 import Text.HTML.SanitizeXSS (sanitizeBalance)
 import Text.Julius (rawJS)
-import Text.Blaze.Html.Renderer.String (renderHtml)
-import Data.Text (Text, pack)
-import Data.Maybe (listToMaybe)
+import Yesod.Core
+import Yesod.Form
 
-class Yesod a => YesodNic a where
-    -- | NIC Editor Javascript file.
-    urlNicEdit :: a -> Either (Route a) Text
-    urlNicEdit _ = Right "http://js.nicedit.com/nicEdit-latest.js"
+class (Yesod a) => YesodNic a where
+  -- | NIC Editor Javascript file.
+  urlNicEdit :: a -> Either (Route a) Text
+  urlNicEdit _ = Right "http://js.nicedit.com/nicEdit-latest.js"
 
-nicHtmlField :: YesodNic site => Field (HandlerFor site) Html
-nicHtmlField = Field
-    { fieldParse = \e _ -> return . Right . fmap (preEscapedToMarkup . sanitizeBalance) . listToMaybe $ e
+nicHtmlField :: (YesodNic site) => Field (HandlerFor site) Html
+nicHtmlField =
+  Field
+    { fieldParse = \e _ ->
+        return . Right . fmap (preEscapedToMarkup . sanitizeBalance) . listToMaybe $ e
     , fieldView = \theId name attrs val _isReq -> do
-        toWidget [shamlet|
+        toWidget
+          [shamlet|
 $newline never
     <textarea id="#{theId}" *{attrs} name="#{name}" .html>#{showVal val}
 |]
@@ -42,20 +45,23 @@ $newline never
         master <- getYesod
         toWidget $
           case jsLoader master of
-            BottomOfHeadBlocking -> [julius|
+            BottomOfHeadBlocking ->
+              [julius|
 bkLib.onDomLoaded(function(){new nicEditor({fullPanel:true}).panelInstance("#{rawJS theId}")});
 |]
-            _ -> [julius|
+            _ ->
+              [julius|
 (function(){new nicEditor({fullPanel:true}).panelInstance("#{rawJS theId}")})();
 |]
     , fieldEnctype = UrlEncoded
     }
-  where
-    showVal = either id (pack . renderHtml)
+ where
+  showVal = either id (pack . renderHtml)
 
-addScript' :: (MonadWidget m, HandlerSite m ~ site)
-           => (site -> Either (Route site) Text)
-           -> m ()
+addScript' ::
+  (MonadWidget m, HandlerSite m ~ site) =>
+  (site -> Either (Route site) Text) ->
+  m ()
 addScript' f = do
-    y <- getYesod
-    addScriptEither $ f y
+  y <- getYesod
+  addScriptEither $ f y

@@ -1,47 +1,55 @@
 module Yesod.Core.Internal.Session
-    ( encodeClientSession
-    , decodeClientSession
-    , clientSessionDateCacher
-    , ClientSessionDateCache(..)
-    , SaveSession
-    , SessionBackend(..)
-    ) where
+  ( encodeClientSession
+  , decodeClientSession
+  , clientSessionDateCacher
+  , ClientSessionDateCache (..)
+  , SaveSession
+  , SessionBackend (..)
+  ) where
 
-import qualified Web.ClientSession as CS
+import Control.AutoUpdate
+import Control.Monad (guard)
+import Data.ByteString (ByteString)
 import Data.Serialize
 import Data.Time
-import Data.ByteString (ByteString)
-import Control.Monad (guard)
-import Yesod.Core.Types
+import qualified Web.ClientSession as CS
 import Yesod.Core.Internal.Util
-import Control.AutoUpdate
+import Yesod.Core.Types
 
-encodeClientSession :: CS.Key
-                    -> CS.IV
-                    -> ClientSessionDateCache  -- ^ expire time
-                    -> ByteString -- ^ remote host
-                    -> SessionMap -- ^ session
-                    -> ByteString -- ^ cookie value
+encodeClientSession ::
+  CS.Key ->
+  CS.IV ->
+  -- | expire time
+  ClientSessionDateCache ->
+  -- | remote host
+  ByteString ->
+  -- | session
+  SessionMap ->
+  -- | cookie value
+  ByteString
 encodeClientSession key iv date rhost session' =
-    CS.encrypt key iv $ encode $ SessionCookie expires rhost session'
-      where expires = Right (csdcExpiresSerialized date)
+  CS.encrypt key iv $ encode $ SessionCookie expires rhost session'
+ where
+  expires = Right (csdcExpiresSerialized date)
 
-decodeClientSession :: CS.Key
-                    -> ClientSessionDateCache  -- ^ current time
-                    -> ByteString -- ^ remote host field
-                    -> ByteString -- ^ cookie value
-                    -> Maybe SessionMap
+decodeClientSession ::
+  CS.Key ->
+  -- | current time
+  ClientSessionDateCache ->
+  -- | remote host field
+  ByteString ->
+  -- | cookie value
+  ByteString ->
+  Maybe SessionMap
 decodeClientSession key date rhost encrypted = do
-    decrypted <- CS.decrypt key encrypted
-    SessionCookie (Left expire) rhost' session' <-
-        either (const Nothing) Just $ decode decrypted
-    guard $ expire > csdcNow date
-    guard $ rhost' == rhost
-    return session'
-
+  decrypted <- CS.decrypt key encrypted
+  SessionCookie (Left expire) rhost' session' <-
+    either (const Nothing) Just $ decode decrypted
+  guard $ expire > csdcNow date
+  guard $ rhost' == rhost
+  return session'
 
 ----------------------------------------------------------------------
-
 
 -- Originally copied from Kazu's date-cache, but now using mkAutoUpdate.
 --
@@ -53,18 +61,21 @@ decodeClientSession key date rhost encrypted = do
 -- to preserve the type.
 
 clientSessionDateCacher ::
-     NominalDiffTime -- ^ Inactive session validity.
-  -> IO (IO ClientSessionDateCache, IO ())
+  -- | Inactive session validity.
+  NominalDiffTime ->
+  IO (IO ClientSessionDateCache, IO ())
 clientSessionDateCacher validity = do
-    getClientSessionDateCache <- mkAutoUpdate defaultUpdateSettings
-      { updateAction = getUpdated
-      , updateFreq   = 10000000 -- 10s
-      }
+  getClientSessionDateCache <-
+    mkAutoUpdate
+      defaultUpdateSettings
+        { updateAction = getUpdated
+        , updateFreq = 10000000 -- 10s
+        }
 
-    return (getClientSessionDateCache, return ())
-  where
-    getUpdated = do
-      now <- getCurrentTime
-      let expires  = validity `addUTCTime` now
-          expiresS = runPut (putTime expires)
-      return $! ClientSessionDateCache now expires expiresS
+  return (getClientSessionDateCache, return ())
+ where
+  getUpdated = do
+    now <- getCurrentTime
+    let expires = validity `addUTCTime` now
+        expiresS = runPut (putTime expires)
+    return $! ClientSessionDateCache now expires expiresS
