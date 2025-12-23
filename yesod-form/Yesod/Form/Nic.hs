@@ -34,7 +34,7 @@ nicHtmlField :: (YesodNic site) => Field (HandlerFor site) Html
 nicHtmlField =
   Field
     { fieldParse = \e _ ->
-        return . Right . fmap (preEscapedToMarkup . sanitizeBalance) . listToMaybe $ e
+        pure . Right . fmap (preEscapedToMarkup . sanitizeBalance) . listToMaybe $ e
     , fieldView = \theId name attrs val _isReq -> do
         toWidget
           [shamlet|

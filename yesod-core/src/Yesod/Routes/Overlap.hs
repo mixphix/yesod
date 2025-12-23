@@ -19,7 +19,7 @@ flatten =
   go id id True
  where
   go names pieces check (ResourceLeaf r) =
-    return
+    pure
       Flattened
         { fNames = names [resourceName r]
         , fPieces = pieces (resourcePieces r)

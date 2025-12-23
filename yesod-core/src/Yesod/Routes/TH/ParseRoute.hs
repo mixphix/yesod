@@ -25,7 +25,7 @@ mkParseRouteInstance cxt typ ress = do
         , mdsSetPathInfo = [|\p (_, q) -> (p, q)|]
         , mdsSubDispatcher =
             [|\_runHandler _getSub toMaster _env -> fmap toMaster . parseRoute|]
-        , mdsUnwrapper = return
+        , mdsUnwrapper = pure
         }
       (map removeMethods ress)
   helper <- newName "helper"
@@ -36,12 +36,12 @@ mkParseRouteInstance cxt typ ress = do
         ([Text], [(Text, Text)]) ->
         Maybe (Route a)
       |]
-  return $
+  pure $
     instanceD
       cxt
       (ConT ''ParseRoute `AppT` typ)
       [ FunD 'parseRoute $
-          return $
+          pure $
             Clause
               []
               (NormalB $ fixer `AppE` VarE helper)

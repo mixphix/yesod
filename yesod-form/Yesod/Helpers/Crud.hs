@@ -105,9 +105,9 @@ getCrudEditR ::
   ) =>
   Text -> GHandler (Crud master item) master RepHtml
 getCrudEditR s = do
-  itemId <- maybe notFound return $ fromSinglePiece s
+  itemId <- maybe notFound pure $ fromSinglePiece s
   crud <- getYesodSub
-  item <- crudGet crud itemId >>= maybe notFound return
+  item <- crudGet crud itemId >>= maybe notFound pure
   crudHelper
     "Edit item"
     (Just (itemId, item))
@@ -121,9 +121,9 @@ postCrudEditR ::
   ) =>
   Text -> GHandler (Crud master item) master RepHtml
 postCrudEditR s = do
-  itemId <- maybe notFound return $ fromSinglePiece s
+  itemId <- maybe notFound pure $ fromSinglePiece s
   crud <- getYesodSub
-  item <- crudGet crud itemId >>= maybe notFound return
+  item <- crudGet crud itemId >>= maybe notFound pure
   crudHelper
     "Edit item"
     (Just (itemId, item))
@@ -133,9 +133,9 @@ getCrudDeleteR ::
   (Yesod master, Item item, SinglePiece (Key item)) =>
   Text -> GHandler (Crud master item) master RepHtml
 getCrudDeleteR s = do
-  itemId <- maybe notFound return $ fromSinglePiece s
+  itemId <- maybe notFound pure $ fromSinglePiece s
   crud <- getYesodSub
-  item <- crudGet crud itemId >>= maybe notFound return -- Just ensure it exists
+  item <- crudGet crud itemId >>= maybe notFound pure -- Just ensure it exists
   toMaster <- getRouteToMaster
   defaultLayout $ do
     setTitle "Confirm delete"
@@ -154,7 +154,7 @@ postCrudDeleteR ::
   (Yesod master, Item item, SinglePiece (Key item)) =>
   Text -> GHandler (Crud master item) master RepHtml
 postCrudDeleteR s = do
-  itemId <- maybe notFound return $ fromSinglePiece s
+  itemId <- maybe notFound pure $ fromSinglePiece s
   crud <- getYesodSub
   toMaster <- getRouteToMaster
   crudDelete crud itemId
@@ -175,13 +175,13 @@ crudHelper title me isPost = do
       eid <- case me of
         Just (eid, _) -> do
           crudReplace crud eid a
-          return eid
+          pure eid
         Nothing -> crudInsert crud a
       redirect RedirectTemporary $
         toMaster $
           CrudEditR $
             toSinglePiece eid
-    _ -> return ()
+    _ -> pure ()
   defaultLayout $ do
     setTitle $ toHtml title
     addWidget

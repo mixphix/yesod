@@ -72,7 +72,7 @@ getWikiHomeR = do
                 |]
         -- You provide a JSON representation just by returning a JSON value.
         -- aeson's toJSON make it easy to convert a list of values into JSON.
-        provideRep $ return $ toJSON $ Map.keys content
+        provideRep $ pure $ toJSON $ Map.keys content
 
 getWikiReadR :: Texts -> WikiHandler TypedContent
 getWikiReadR page = do
@@ -101,7 +101,7 @@ getWikiReadR page = do
                                 <p>
                                     <a href=@{toParent $ WikiEditR page}>Edit
                         |]
-        provideRep $ return $ toJSON $
+        provideRep $ pure $ toJSON $
             case Map.lookup page content of
                 -- Our HTML representation sends a redirect if the page isn't
                 -- found, but our JSON representation just returns a JSON value

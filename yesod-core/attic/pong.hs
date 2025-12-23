@@ -13,6 +13,6 @@ mkYesod "Pong" [parseRoutes|
 
 instance Yesod Pong
 
-getHomeR = liftHandlerT $ return "PONG"
+getHomeR = liftHandlerT $ pure "PONG"
 
 main = warp 3000 Pong

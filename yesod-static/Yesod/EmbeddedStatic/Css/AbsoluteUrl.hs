@@ -35,7 +35,7 @@ absCssUrlsFileProd ::
   IO BL.ByteString
 absCssUrlsFileProd dir file = do
   contents <- T.readFile file
-  return $ TL.encodeUtf8 $ absCssUrlsProd dir contents
+  pure $ TL.encodeUtf8 $ absCssUrlsProd dir contents
 
 absCssUrlsProd ::
   -- | Anchor relative urls to here
@@ -57,7 +57,7 @@ absCssUrlsProd dir contents =
 absoluteUrls :: FilePath -> Generator
 absoluteUrls f = absoluteUrlsAt f f
 
--- | Equivalent to passing @return@ to 'absoluteUrlsWith'.
+-- | Equivalent to passing @pure@ to 'absoluteUrlsWith'.
 absoluteUrlsAt :: Location -> FilePath -> Generator
 absoluteUrlsAt loc f = absoluteUrlsWith loc f Nothing
 
@@ -74,15 +74,15 @@ absoluteUrlsWith ::
   Location ->
   -- | Path to the CSS file.
   FilePath ->
-  -- | Another filter function run after this one (for example @return . yuiCSS . cssContent@) or other CSS filter that runs after this filter.
+  -- | Another filter function run after this one (for example @pure . yuiCSS . cssContent@) or other CSS filter that runs after this filter.
   Maybe (CssGeneration -> IO BL.ByteString) ->
   Generator
 absoluteUrlsWith loc file mpostFilter =
-  return
+  pure
     [ cssProductionFilter
         (absCssUrlsFileProd loc >=> postFilter . mkCssGeneration loc file)
         loc
         file
     ]
  where
-  postFilter = fromMaybe (return . cssContent) mpostFilter
+  postFilter = fromMaybe (pure . cssContent) mpostFilter

@@ -102,7 +102,7 @@ newFormIdent = do
   i <- get
   let i' = incrInts i
   put i'
-  return $ pack $ 'f' : show i'
+  pure $ pack $ 'f' : show i'
  where
   incrInts (IntSingle i) = IntSingle $ i + 1
   incrInts (IntCons i is) = (i + 1) `IntCons` is
@@ -113,7 +113,7 @@ formToAForm ::
   AForm m a
 formToAForm form = AForm $ \(site, langs) env ints -> do
   ((a, xmls), ints', enc) <- runRWST form (env, site, langs) ints
-  return (a, (++) xmls, ints', enc)
+  pure (a, (++) xmls, ints', enc)
 
 aFormToForm ::
   (Monad m, HandlerSite m ~ site) =>
@@ -125,17 +125,17 @@ aFormToForm (AForm aform) = do
   (a, xml, ints', enc) <- lift $ aform (site, langs) env ints
   put ints'
   tell enc
-  return (a, xml)
+  pure (a, xml)
 
 askParams :: (Monad m) => MForm m (Maybe Env)
 askParams = do
   (x, _, _) <- ask
-  return $ liftM fst x
+  pure $ liftM fst x
 
 askFiles :: (Monad m) => MForm m (Maybe FileEnv)
 askFiles = do
   (x, _, _) <- ask
-  return $ liftM snd x
+  pure $ liftM snd x
 
 -- | Converts a form field into monadic form 'WForm'. This field requires a
 -- value and will return 'FormFailure' if left empty.
@@ -296,19 +296,19 @@ mhelper ::
 mhelper Field{..} FieldSettings{..} mdef onMissing onFound isReq = do
   tell fieldEnctype
   mp <- askParams
-  name <- maybe newFormIdent return fsName
-  theId <- lift $ maybe newIdent return fsId
+  name <- maybe newFormIdent pure fsName
+  theId <- lift $ maybe newIdent pure fsId
   (_, site, langs) <- ask
   let mr2 = renderMessage site langs
   (res, val) <-
     case mp of
-      Nothing -> return (FormMissing, maybe (Left "") Right mdef)
+      Nothing -> pure (FormMissing, maybe (Left "") Right mdef)
       Just p -> do
         mfs <- askFiles
         let mvals = fromMaybe [] $ Map.lookup name p
             files = fromMaybe [] $ mfs >>= Map.lookup name
         emx <- lift $ fieldParse mvals files
-        return $ case emx of
+        pure $ case emx of
           Left (SomeMessage e) ->
             ( FormFailure [renderMessage site langs e]
             , maybe (Left "") Left (listToMaybe mvals)
@@ -317,7 +317,7 @@ mhelper Field{..} FieldSettings{..} mdef onMissing onFound isReq = do
             case mx of
               Nothing -> (onMissing site langs, Left "")
               Just x -> (onFound x, Right x)
-  return
+  pure
     ( res
     , FieldView
         { fvLabel = toHtml $ mr2 fsLabel
@@ -363,7 +363,7 @@ areqMsg ::
   -- | optional default value
   Maybe a ->
   AForm m a
-areqMsg f fs msg = formToAForm . liftM (second return) . mreqMsg f fs msg
+areqMsg f fs msg = formToAForm . liftM (second pure) . mreqMsg f fs msg
 
 -- | Applicative equivalent of 'mopt'.
 aopt ::
@@ -372,7 +372,7 @@ aopt ::
   FieldSettings (HandlerSite m) ->
   Maybe (Maybe a) ->
   AForm m (Maybe a)
-aopt a b = formToAForm . liftM (second return) . mopt a b
+aopt a b = formToAForm . liftM (second pure) . mopt a b
 
 runFormGeneric ::
   (Monad m) =>
@@ -427,7 +427,7 @@ postHelper form env = do
         (Just [t1]) === (Just t2) = TE.encodeUtf8 t1 `constEqBytes` TE.encodeUtf8 t2
         Nothing === Nothing = True
         _ === _ = False
-  return ((res', xml), enctype)
+  pure ((res', xml), enctype)
 
 -- | Similar to 'runFormPost', except it always ignores the currently available
 -- environment. This is necessary in cases like a wizard UI, where a single
@@ -443,11 +443,11 @@ postEnv :: (MonadHandler m) => m (Maybe (Env, FileEnv))
 postEnv = do
   req <- getRequest
   if requestMethod (reqWaiRequest req) == "GET"
-    then return Nothing
+    then pure Nothing
     else do
       (p, f) <- runRequestBody
       let p' = Map.unionsWith (++) $ map (\(x, y) -> Map.singleton x [y]) p
-      return $ Just (p', Map.unionsWith (++) $ map (\(k, v) -> Map.singleton k [v]) f)
+      pure $ Just (p', Map.unionsWith (++) $ map (\(k, v) -> Map.singleton k [v]) f)
 
 runFormPostNoToken ::
   (MonadHandler m) =>
@@ -555,7 +555,7 @@ identifyForm identVal form = \fragment -> do
 
   -- Empty forms now properly return FormMissing. [#1072](https://github.com/yesodweb/yesod/issues/1072)
   let res = if missing then FormMissing else res'
-  return (res, w)
+  pure (res, w)
 
 identifyFormKey :: Text
 identifyFormKey = "_formid"
@@ -590,7 +590,7 @@ $forall (isFirst, view) <- addIsFirst views
         $maybe err <- fvErrors view
             <td .errors>#{err}
 |]
-  return (res, widget)
+  pure (res, widget)
  where
   addIsFirst [] = []
   addIsFirst (x : y) = (True, x) : map (False,) y
@@ -619,7 +619,7 @@ $forall view <- views
         $maybe err <- fvErrors view
             <div .errors>#{err}
 |]
-  return (res, widget)
+  pure (res, widget)
 
 -- | Render a form using Bootstrap v2-friendly shamlet syntax.
 -- If you're using Bootstrap v3, then you should use the
@@ -660,7 +660,7 @@ renderBootstrap2 aform fragment = do
                             $maybe err <- fvErrors view
                                 <span .help-block>#{err}
                 |]
-  return (res, widget)
+  pure (res, widget)
 
 -- | Deprecated synonym for 'renderBootstrap2'.
 renderBootstrap :: (Monad m) => FormRender m a
@@ -672,7 +672,7 @@ check ::
   (a -> Either msg a) ->
   Field m a ->
   Field m a
-check f = checkM $ return . f
+check f = checkM $ pure . f
 
 -- | Return the given error message if the predicate is false.
 checkBool ::
@@ -704,8 +704,8 @@ checkMMap f inv field =
     { fieldParse = \ts fs -> do
         e1 <- fieldParse field ts fs
         case e1 of
-          Left msg -> return $ Left msg
-          Right Nothing -> return $ Right Nothing
+          Left msg -> pure $ Left msg
+          Right Nothing -> pure $ Right Nothing
           Right (Just a) -> liftM (either (Left . SomeMessage) (Right . Just)) $ f a
     , fieldView = \i n a eres req -> fieldView field i n a (fmap inv eres) req
     }
@@ -748,9 +748,9 @@ parseHelperGen ::
   [Text] ->
   [FileInfo] ->
   m (Either (SomeMessage site) (Maybe a))
-parseHelperGen _ [] _ = return $ Right Nothing
-parseHelperGen _ ("" : _) _ = return $ Right Nothing
-parseHelperGen f (x : _) _ = return $ either (Left . SomeMessage) (Right . Just) $ f x
+parseHelperGen _ [] _ = pure $ Right Nothing
+parseHelperGen _ ("" : _) _ = pure $ Right Nothing
+parseHelperGen f (x : _) _ = pure $ either (Left . SomeMessage) (Right . Just) $ f x
 
 -- | Since a 'Field' cannot be a 'Functor', it is not obvious how to "reuse" a Field
 -- on a @newtype@ or otherwise equivalent type. This function allows you to convert

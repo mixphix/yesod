@@ -59,8 +59,8 @@ limitRequestBody maxLen req = do
           then throwIO $ HCWai $ tooLargeResponse maxLen len
           else do
             writeIORef ref remaining'
-            return bs
-  return $ W.setRequestBodyChunks bd req
+            pure bs
+  pure $ W.setRequestBodyChunks bd req
 
 tooLargeResponse :: Word64 -> Word64 -> W.Response
 tooLargeResponse maxLen bodyLen =
@@ -93,8 +93,8 @@ parseWaiRequest env session useToken mmaxBodySize =
     Right mkToken -> Right $ mkRequest <=< mkToken
  where
   mkRequest token' = do
-    envLimited <- maybe return limitRequestBody mmaxBodySize env
-    return
+    envLimited <- maybe pure limitRequestBody mmaxBodySize env
+    pure
       YesodRequest
         { reqGetParams = gets
         , reqCookies = cookies
@@ -178,9 +178,9 @@ randomString len gen =
           let y = fromIntegral $ x `mod` 64
           case () of
             ()
-              | y < 26 -> return $ y + Word8._A
-              | y < 52 -> return $ y + Word8._a - 26
-              | y < 62 -> return $ y + Word8._0 - 52
+              | y < 26 -> pure $ y + Word8._A
+              | y < 52 -> pure $ y + Word8._a - 26
+              | y < 62 -> pure $ y + Word8._0 - 52
               | otherwise -> loop
      in loop
 

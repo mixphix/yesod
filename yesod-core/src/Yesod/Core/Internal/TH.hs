@@ -73,7 +73,7 @@ mkYesodOpts ::
   String ->
   [ResourceTree String] ->
   Q [Dec]
-mkYesodOpts opts name = fmap (uncurry (++)) . mkYesodWithParserOpts opts name False return
+mkYesodOpts opts name = fmap (uncurry (++)) . mkYesodWithParserOpts opts name False pure
 
 {-# DEPRECATED
   mkYesodWith
@@ -92,7 +92,7 @@ mkYesodWith ::
   [String] ->
   [ResourceTree String] ->
   Q [Dec]
-mkYesodWith cxts name args = fmap (uncurry (++)) . mkYesodGeneral cxts name args False return
+mkYesodWith cxts name args = fmap (uncurry (++)) . mkYesodGeneral cxts name args False pure
 
 -- | Sometimes, you will want to declare your routes in one file and define
 -- your handlers elsewhere. For example, this is the only way to break up a
@@ -105,7 +105,7 @@ mkYesodData = mkYesodDataOpts defaultOpts
 --
 -- @since 1.6.25.0
 mkYesodDataOpts :: RouteOpts -> String -> [ResourceTree String] -> Q [Dec]
-mkYesodDataOpts opts name resS = fst <$> mkYesodWithParserOpts opts name False return resS
+mkYesodDataOpts opts name resS = fst <$> mkYesodWithParserOpts opts name False pure resS
 
 mkYesodSubData :: String -> [ResourceTree String] -> Q [Dec]
 mkYesodSubData = mkYesodSubDataOpts defaultOpts
@@ -114,7 +114,7 @@ mkYesodSubData = mkYesodSubDataOpts defaultOpts
 --
 -- @since 1.6.25.0
 mkYesodSubDataOpts :: RouteOpts -> String -> [ResourceTree String] -> Q [Dec]
-mkYesodSubDataOpts opts name resS = fst <$> mkYesodWithParserOpts opts name True return resS
+mkYesodSubDataOpts opts name resS = fst <$> mkYesodWithParserOpts opts name True pure resS
 
 -- | Parses contexts and type arguments out of name before generating TH.
 mkYesodWithParser ::
@@ -154,7 +154,7 @@ mkYesodWithParserOpts opts name isSub f resS = do
     args <- many parseWord
     spaces
     eof
-    return (name', args, cxt)
+    pure (name', args, cxt)
 
   parseWord = do
     spaces
@@ -164,7 +164,7 @@ mkYesodWithParserOpts opts name isSub f resS = do
     cxts <- parseParen parseContexts
     spaces
     _ <- string "=>"
-    return cxts
+    pure cxts
 
   parseParen p = do
     spaces
@@ -172,10 +172,10 @@ mkYesodWithParserOpts opts name isSub f resS = do
     r <- p
     spaces
     _ <- char ')'
-    return r
+    pure r
 
   parseContexts =
-    sepBy1 (many1 parseWord) (spaces >> char ',' >> return ())
+    sepBy1 (many1 parseWord) (spaces >> char ',' >> pure ())
 
 -- | See 'mkYesodData'.
 mkYesodDispatch :: String -> [ResourceTree String] -> Q [Dec]
@@ -185,7 +185,7 @@ mkYesodDispatch = mkYesodDispatchOpts defaultOpts
 --
 -- @since 1.6.25.0
 mkYesodDispatchOpts :: RouteOpts -> String -> [ResourceTree String] -> Q [Dec]
-mkYesodDispatchOpts opts name = fmap snd . mkYesodWithParserOpts opts name False return
+mkYesodDispatchOpts opts name = fmap snd . mkYesodWithParserOpts opts name False pure
 
 -- | Get the Handler and Widget type synonyms for the given site.
 masterTypeSyns :: [Name] -> Type -> [Dec] -- FIXME remove from here, put into the scaffolding itself?
@@ -243,7 +243,7 @@ mkYesodGeneralOpts opts appCxt' namestr mtys isSub f resS = do
   arity <- case mname of
     Just name -> do
       info <- reify name
-      return $
+      pure $
         case info of
           TyConI dec ->
             case dec of
@@ -252,7 +252,7 @@ mkYesodGeneralOpts opts appCxt' namestr mtys isSub f resS = do
               TySynD _ vs _ -> length vs
               _ -> 0
           _ -> 0
-    _ -> return 0
+    _ -> pure 0
   let name = mkName namestr
   -- Generate as many variable names as the arity indicates
   vns <- replicateM (arity - length mtys) $ newName "t"
@@ -287,7 +287,7 @@ mkYesodGeneralOpts opts appCxt' namestr mtys isSub f resS = do
           , resourcesDec
           , if isSub then [] else masterTypeSyns argvars site
           ]
-  return (dataDec, dispatchDec)
+  pure (dataDec, dispatchDec)
 
 mkMDS :: (Exp -> Q Exp) -> Q Exp -> Q Exp -> MkDispatchSettings a site b
 mkMDS f rh sd =
@@ -337,7 +337,7 @@ mkDispatchInstance master cxt f res = do
       )
       res
   let thisDispatch = FunD 'yesodDispatch [clause']
-  return [instanceD cxt yDispatch [thisDispatch]]
+  pure [instanceD cxt yDispatch [thisDispatch]]
  where
   yDispatch = ConT ''YesodDispatch `AppT` master
 
@@ -346,7 +346,7 @@ mkYesodSubDispatch res = do
   clause' <-
     mkDispatchClause
       ( mkMDS
-          return
+          pure
           [|subHelper|]
           [|subTopDispatch|]
       )
@@ -362,7 +362,7 @@ mkYesodSubDispatch res = do
               (NormalB $ VarE inner)
               [innerFun]
           ]
-  return $ LetE [fun] (VarE helper)
+  pure $ LetE [fun] (VarE helper)
 
 subTopDispatch ::
   (YesodSubDispatch sub master) =>

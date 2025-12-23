@@ -25,7 +25,7 @@ import Yesod.Form.Functions
 import Yesod.Form.Types
 
 down :: (Monad m) => Int -> MForm m ()
-down 0 = return ()
+down 0 = pure ()
 down i | i < 0 = error "called down with a negative number"
 down i = do
   is <- get
@@ -33,13 +33,13 @@ down i = do
   down $ i - 1
 
 up :: (Monad m) => Int -> MForm m ()
-up 0 = return ()
+up 0 = pure ()
 up i | i < 0 = error "called down with a negative number"
 up i = do
   is <- get
   case is of
     IntSingle _ -> error "up on IntSingle"
-    IntCons _ is' -> put is' >> newFormIdent >> return ()
+    IntCons _ is' -> put is' >> newFormIdent >> pure ()
   up $ i - 1
 
 -- | Generate a form that accepts 0 or more values from the user, allowing the
@@ -77,7 +77,7 @@ inputList label fixXml single mdef = formToAForm $ do
   let count = length vals
   (res, xmls, views) <- liftM fixme $ mapM (withDelete . single) vals
   up 1
-  return
+  pure
     ( res
     ,
       [ FieldView
@@ -111,7 +111,7 @@ withDelete af = do
   (menv, _, _) <- ask
   res <- case menv >>= Map.lookup deleteName . fst of
     Just ("yes" : _) ->
-      return $
+      pure $
         Left
           [whamlet|
 $newline never
@@ -131,9 +131,9 @@ $newline never
               }
           $ Just False
       (res, xml) <- aFormToForm af
-      return $ Right (res, xml $ xml2 [])
+      pure $ Right (res, xml $ xml2 [])
   up 1
-  return res
+  pure res
 
 fixme ::
   [Either xml (FormResult a, [FieldView site])] ->

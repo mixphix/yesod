@@ -50,10 +50,10 @@ cached ::
   -- | Left is a cache miss, Right is a hit
   m (Either (TypeMap, a) a)
 cached cache action = case cacheGet cache of
-  Just val -> return $ Right val
+  Just val -> pure $ Right val
   Nothing -> do
     val <- action
-    return $ Left (cacheSet val cache, val)
+    pure $ Left (cacheSet val cache, val)
 
 -- | Retrieves a value from the cache
 --
@@ -95,10 +95,10 @@ cachedBy ::
   -- | Left is a cache miss, Right is a hit
   m (Either (KeyedTypeMap, a) a)
 cachedBy cache k action = case cacheByGet k cache of
-  Just val -> return $ Right val
+  Just val -> pure $ Right val
   Nothing -> do
     val <- action
-    return $ Left (cacheBySet k val cache, val)
+    pure $ Left (cacheBySet k val cache, val)
 
 -- | Retrieves a value from the keyed cache
 --

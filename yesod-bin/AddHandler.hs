@@ -79,7 +79,7 @@ addHandlerInteractive = do
                 print err
                 putStrLn "Try another name or leave blank to exit"
                 routeInput
-              Right p -> return p
+              Right p -> pure p
 
     routePair <- routeInput
     putStr "Enter route pattern (ex: /entry/#EntryId): "
@@ -118,24 +118,24 @@ getCabal :: IO FilePath
 getCabal = do
     allFiles <- getDirectoryContents "."
     case filter (".cabal" `isSuffixOf`) allFiles of
-        [x] -> return x
+        [x] -> pure x
         [] -> error "No cabal file found"
         _ -> error "Too many cabal files found"
 
 checkRoute :: String -> FilePath -> IO (Either RouteError (String, FilePath))
 checkRoute name cabal =
     case name of
-        [] -> return $ Left EmptyRoute
+        [] -> pure $ Left EmptyRoute
         c:_
-            | isLower c -> return $ Left RouteCaseError
+            | isLower c -> pure $ Left RouteCaseError
             | otherwise -> do
                 -- Check that the handler file doesn't already exist
                 src <- getSrcDir cabal
                 let handlerFile = concat [src, "/Handler/", name, ".hs"]
                 exists <- doesFileExist handlerFile
                 if exists
-                    then (return . Left . RouteExists) handlerFile
-                    else return $ Right (name, handlerFile)
+                    then (pure . Left . RouteExists) handlerFile
+                    else pure $ Right (name, handlerFile)
 
 fixApp :: String -> String -> String
 fixApp name =
@@ -256,7 +256,7 @@ getSrcDir cabal = do
     let buildInfo = allBuildInfo pd
         srcDirs = concatMap hsSourceDirs buildInfo
 #if MIN_VERSION_Cabal(3, 6, 0)
-    return $ maybe "." getSymbolicPath $ listToMaybe srcDirs
+    pure $ maybe "." getSymbolicPath $ listToMaybe srcDirs
 #else
-    return $ fromMaybe "." $ listToMaybe srcDirs
+    pure $ fromMaybe "." $ listToMaybe srcDirs
 #endif

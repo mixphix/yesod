@@ -43,7 +43,7 @@ app :: Session () -> IO ()
 app = yesod Y
 
 getRootR :: Handler ()
-getRootR = return ()
+getRootR = pure ()
 
 specs :: Spec
 specs = describe "WaiSubsite" $ do

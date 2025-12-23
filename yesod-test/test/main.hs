@@ -595,22 +595,22 @@ app = liteApp $ do
     dispatchTo $ do
         mfoo <- lookupGetParam "foo"
         case mfoo of
-            Nothing -> return "Hello world!"
-            Just foo -> return $ "foo=" <> foo
-    onStatic "dynamic1" $ withDynamic $ \d -> dispatchTo $ return (d :: Text)
+            Nothing -> pure "Hello world!"
+            Just foo -> pure $ "foo=" <> foo
+    onStatic "dynamic1" $ withDynamic $ \d -> dispatchTo $ pure (d :: Text)
     onStatic "dynamic2" $ onStatic "שלום" $ dispatchTo $ do
         req <- waiRequest
-        return $ pathInfo req !! 1
+        pure $ pathInfo req !! 1
     onStatic "post" $ dispatchTo $ do
         mfoo <- lookupPostParam "foo"
         case mfoo of
             Nothing -> error "No foo"
-            Just foo -> return foo
+            Just foo -> pure foo
     onStatic "query" . dispatchTo $
         T.pack . B8.unpack . rawQueryString <$> waiRequest
-    onStatic "redirect301" $ dispatchTo $ redirectWith status301 ("/redirectTarget" :: Text) >> return ()
-    onStatic "redirect303" $ dispatchTo $ redirectWith status303 ("/redirectTarget" :: Text) >> return ()
-    onStatic "redirectTarget" $ dispatchTo $ return ("we have been successfully redirected" :: Text)
+    onStatic "redirect301" $ dispatchTo $ redirectWith status301 ("/redirectTarget" :: Text) >> pure ()
+    onStatic "redirect303" $ dispatchTo $ redirectWith status303 ("/redirectTarget" :: Text) >> pure ()
+    onStatic "redirectTarget" $ dispatchTo $ pure ("we have been successfully redirected" :: Text)
     onStatic "form" $ dispatchTo $ do
         ((mfoo, widget), _) <- runFormPost
                         $ renderDivs
@@ -618,57 +618,57 @@ app = liteApp $ do
                       <$> areqMsg textField "Some Label" ("Missing Label" :: SomeMessage LiteApp) Nothing
                       <*> areq fileField "Some File" Nothing
         case mfoo of
-            FormSuccess (foo, _) -> return $ toHtml foo
+            FormSuccess (foo, _) -> pure $ toHtml foo
             _ -> defaultLayout widget
     onStatic "mform" $ dispatchTo $ do
         ((mfoo, widget), _) <- runFormPost $ renderDivs $ formToAForm $ do
           (field1F, field1V) <- mreqMsg textField "Some MLabel" ("Missing MLabel" :: SomeMessage LiteApp) Nothing
           (field2F, field2V) <- mreq fileField "Some MFile" Nothing
 
-          return
+          pure
             ( (,) <$> field1F <*> field2F
             , [field1V, field2V]
             )
         case mfoo of
-            FormSuccess (foo, _) -> return $ toHtml foo
+            FormSuccess (foo, _) -> pure $ toHtml foo
             _                    -> defaultLayout widget
     onStatic "wform" $ dispatchTo $ do
         ((mfoo, widget), _) <- runFormPost $ renderDivs $ wFormToAForm $ do
           field1F <- wreqMsg textField "Some WLabel" ("Missing WLabel" :: SomeMessage LiteApp) Nothing
           field2F <- wreq fileField "Some WFile" Nothing
 
-          return $ (,) <$> field1F <*> field2F
+          pure $ (,) <$> field1F <*> field2F
         case mfoo of
-            FormSuccess (foo, _) -> return $ toHtml foo
+            FormSuccess (foo, _) -> pure $ toHtml foo
             _                    -> defaultLayout widget
     onStatic "html" $ dispatchTo $
-        return ("<html><head><title>Hello</title></head><body><p>Hello World</p><p>Hello Moon and <span>O'Kon</span></p></body></html>" :: Text)
+        pure ("<html><head><title>Hello</title></head><body><p>Hello World</p><p>Hello Moon and <span>O'Kon</span></p></body></html>" :: Text)
 
     onStatic "htmlWithLink" $ dispatchTo $
-        return ("<html><head><title>A link</title></head><body><a href=\"/html\" id=\"thelink\">Link!</a></body></html>" :: Text)
+        pure ("<html><head><title>A link</title></head><body><a href=\"/html\" id=\"thelink\">Link!</a></body></html>" :: Text)
     onStatic "labels" $ dispatchTo $
-        return ("<html><label><input type='checkbox' name='fooname' id='foobar'>Foo Bar</label></html>" :: Text)
+        pure ("<html><label><input type='checkbox' name='fooname' id='foobar'>Foo Bar</label></html>" :: Text)
     onStatic "labels2" $ dispatchTo $
-        return ("<html><label for='hobby'>hobby</label><label for='hobby2'>hobby2</label><input type='text' name='hobby' id='hobby'><input type='text' name='hobby2' id='hobby2'></html>" :: Text)
+        pure ("<html><label for='hobby'>hobby</label><label for='hobby2'>hobby2</label><input type='text' name='hobby' id='hobby'><input type='text' name='hobby2' id='hobby2'></html>" :: Text)
     onStatic "label-contain" $ dispatchTo $
-        return ("<html><label for='hobby'>XXXhobbyXXX</label><input type='text' name='hobby' id='hobby'></html>" :: Text)
+        pure ("<html><label for='hobby'>XXXhobbyXXX</label><input type='text' name='hobby' id='hobby'></html>" :: Text)
     onStatic "label-contain-error" $ dispatchTo $
-        return ("<html><label for='hobby'>XXXhobbyXXX</label><label for='hobby2'>XXXhobby2XXX</label><input type='text' name='hobby' id='hobby'><input type='text' name='hobby2' id='hobby2'></html>" :: Text)
+        pure ("<html><label for='hobby'>XXXhobbyXXX</label><label for='hobby2'>XXXhobby2XXX</label><input type='text' name='hobby' id='hobby'><input type='text' name='hobby2' id='hobby2'></html>" :: Text)
     onStatic "selector-label-contain" $ dispatchTo $
-        return ("<html><div><label for='hobby-1'>XXXhobbyXXX</label><input type='text' name='hobby-1' id='hobby-1'></div><div id='hobby-container'><label for='hobby'>XXXhobbyXXX</label><input type='text' name='hobby' id='hobby'></div></html>" :: Text)
+        pure ("<html><div><label for='hobby-1'>XXXhobbyXXX</label><input type='text' name='hobby-1' id='hobby-1'></div><div id='hobby-container'><label for='hobby'>XXXhobbyXXX</label><input type='text' name='hobby' id='hobby'></div></html>" :: Text)
     onStatic "selector-label-contain-error" $ dispatchTo $
-        return ("<html><div id='hobby-container'><label for='hobby-1'>XXXhobbyXXX</label><input type='text' name='hobby-1' id='hobby-1'></div><div id='hobby-container'><label for='hobby'>XXXhobbyXXX</label><input type='text' name='hobby' id='hobby'></div></html>" :: Text)
+        pure ("<html><div id='hobby-container'><label for='hobby-1'>XXXhobbyXXX</label><input type='text' name='hobby-1' id='hobby-1'></div><div id='hobby-container'><label for='hobby'>XXXhobbyXXX</label><input type='text' name='hobby' id='hobby'></div></html>" :: Text)
     onStatic "label-prefix" $ dispatchTo $
-        return ("<html><label for='hobby'>hobbyXXX</label><input type='text' name='hobby' id='hobby'></html>" :: Text)
+        pure ("<html><label for='hobby'>hobbyXXX</label><input type='text' name='hobby' id='hobby'></html>" :: Text)
     onStatic "label-prefix-error" $ dispatchTo $
-        return ("<html><label for='hobby'>hobbyXXX</label><label for='hobby2'>hobby2XXX</label><input type='text' name='hobby' id='hobby'><input type='text' name='hobby2' id='hobby2'></html>" :: Text)
+        pure ("<html><label for='hobby'>hobbyXXX</label><label for='hobby2'>hobby2XXX</label><input type='text' name='hobby' id='hobby'><input type='text' name='hobby2' id='hobby2'></html>" :: Text)
     onStatic "label-suffix" $ dispatchTo $
-        return ("<html><label for='hobby'>XXXhobby</label><input type='text' name='hobby' id='hobby'></html>" :: Text)
+        pure ("<html><label for='hobby'>XXXhobby</label><input type='text' name='hobby' id='hobby'></html>" :: Text)
     onStatic "label-suffix-error" $ dispatchTo $
-        return ("<html><label for='hobby'>XXXhobby</label><label for='hobby2'>XXXneo-hobby</label><input type='text' name='hobby' id='hobby'><input type='text' name='hobby2' id='hobby2'></html>" :: Text)
+        pure ("<html><label for='hobby'>XXXhobby</label><label for='hobby2'>XXXneo-hobby</label><input type='text' name='hobby' id='hobby'><input type='text' name='hobby2' id='hobby2'></html>" :: Text)
     onStatic "check-hobby" $ dispatchTo $ do
         hobby <- lookupPostParam "hobby"
-        return $ fromMaybe "No hobby" hobby
+        pure $ fromMaybe "No hobby" hobby
 
     onStatic "checkContentType" $ dispatchTo $ do
         headers <- requestHeaders <$> waiRequest
@@ -677,7 +677,7 @@ app = liteApp $ do
             expected = lookup "Expected-Content-Type" headers
 
         if actual == expected
-            then return ()
+            then pure ()
             else sendResponseStatus unsupportedMediaType415 ()
     onStatic "checkBasicAuth" $ dispatchTo $ do
         headers <- requestHeaders <$> waiRequest
@@ -685,19 +685,19 @@ app = liteApp $ do
 
         -- Copied from the Wikipedia Aladdin:OpenSesame example
         if authHeader == Just "Basic QWxhZGRpbjpPcGVuU2VzYW1l"
-            then return ()
+            then pure ()
             else sendResponseStatus status403 ()
     onStatic "get-json-response" $ dispatchTo $ do
         (sendStatusJSON status200 ([1] :: [Integer])) :: LiteHandler Value
     onStatic "get-json-wrong-content-type" $ dispatchTo $ do
-        return ("[1]" :: Text)
+        pure ("[1]" :: Text)
 
     onStatic "labels-radio-buttons" $ dispatchTo $ do
         ((result, widget), _) <- runFormPost
                     $ renderDivs
                     $ RadioButtonForm <$> aopt (radioField' optionsEnum) "Color" Nothing
         case result of
-            FormSuccess color -> return $ toHtml $ show color
+            FormSuccess color -> pure $ toHtml $ show color
             _ -> defaultLayout [whamlet|$newline never
                                 <p>
                                   ^{toHtml $ show result}
@@ -710,7 +710,7 @@ app = liteApp $ do
                     $ renderDivs
                     $ CheckboxesForm <$> areq (checkboxesField' optionsEnum) "Checkboxes" (Just [Blue, Black])
         case result of
-            FormSuccess color -> return $ toHtml $ show color
+            FormSuccess color -> pure $ toHtml $ show color
             _ -> defaultLayout [whamlet|$newline never
                                 <p>
                                   ^{toHtml $ show result}
@@ -723,7 +723,7 @@ app = liteApp $ do
                     $ renderDivs
                     $ SelectionForm <$> areq (selectField optionsEnum) "Selection List" Nothing
         case result of
-            FormSuccess color -> return $ toHtml $ show color
+            FormSuccess color -> pure $ toHtml $ show color
             _ -> defaultLayout [whamlet|$newline never
                                 <p>
                                   ^{toHtml $ show result}
@@ -745,11 +745,11 @@ cookieApp = liteApp $ do
         onStatic "foo" $ dispatchTo $ do
             setMessage "Foo"
             () <- redirect ("/cookie/home" :: Text)
-            return ()
+            pure ()
         onStatic "check-no-cookie" $ dispatchTo $ do
             mCookie <- lookupCookie "key"
             if isNothing mCookie
-                then return ()
+                then pure ()
                 else sendResponseStatus status422 ()
 
 instance Yesod RoutedApp where
@@ -772,7 +772,7 @@ postHomeR = defaultLayout
 postResourcesR :: Handler ()
 postResourcesR = do
     t <- runRequestBody >>= \case
-        ([("foo", t)], _) -> return t
+        ([("foo", t)], _) -> pure t
         _ -> liftIO $ fail "postResourcesR pattern match failure"
     sendResponseCreated $ ResourceR t
 

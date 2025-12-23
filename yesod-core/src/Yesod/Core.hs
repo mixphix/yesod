@@ -186,7 +186,7 @@ unauthorizedI ::
   (MonadHandler m, RenderMessage (HandlerSite m) msg) => msg -> m AuthResult
 unauthorizedI msg = do
   mr <- getMessageRender
-  return $ Unauthorized $ mr msg
+  pure $ Unauthorized $ mr msg
 
 yesodVersion :: String
 yesodVersion = showVersion Paths_yesod_core.version
@@ -203,7 +203,7 @@ maybeAuthorized ::
   HandlerT site IO (Maybe (Route site))
 maybeAuthorized r isWrite = do
   x <- isAuthorized r isWrite
-  return $ if x == Authorized then Just r else Nothing
+  pure $ if x == Authorized then Just r else Nothing
 
 showIntegral :: (Integral a) => a -> String
 showIntegral x = show (fromIntegral x :: Integer)

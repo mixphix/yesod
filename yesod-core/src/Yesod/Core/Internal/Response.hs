@@ -43,7 +43,7 @@ yarToResponse (YRPlain s' hs ct c newSess) saveSession yreq _req is sendResponse
             (\n -> Map.insert tokenKey (encodeUtf8 n) newSess)
             (reqToken yreq)
     sessionHeaders <- saveSession nsToken
-    return $ ("Content-Type", ct) : map headerToPair sessionHeaders
+    pure $ ("Content-Type", ct) : map headerToPair sessionHeaders
   let finalHeaders = extraHeaders ++ map headerToPair hs
       finalHeaders' len =
         ("Content-Length", S8.pack $ show len)
@@ -106,11 +106,11 @@ evaluateContent (ContentBuilder b mlen) = handle f $ do
   let lbs = toLazyByteString b
       len = L.length lbs
       mlen' = mlen `mplus` Just (fromIntegral len)
-  len `seq` return (Right $ ContentBuilder (lazyByteString lbs) mlen')
+  len `seq` pure (Right $ ContentBuilder (lazyByteString lbs) mlen')
  where
   f :: SomeException -> IO (Either ErrorResponse Content)
-  f = return . Left . InternalError . T.pack . show
-evaluateContent c = return (Right c)
+  f = pure . Left . InternalError . T.pack . show
+evaluateContent c = pure (Right c)
 
 getStatus :: ErrorResponse -> H.Status
 getStatus NotFound = H.status404

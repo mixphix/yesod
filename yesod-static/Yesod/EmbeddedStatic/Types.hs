@@ -66,8 +66,8 @@ instance Default Entry where
       { ebHaskellName = Nothing
       , ebLocation = "xxxx"
       , ebMimeType = "application/octet-stream"
-      , ebProductionContent = return BL.empty
-      , ebDevelReload = [|return BL.empty|]
+      , ebProductionContent = pure BL.empty
+      , ebDevelReload = [|pure BL.empty|]
       , ebDevelExtraFiles = Nothing
       }
 

@@ -169,11 +169,11 @@ getCreateCsrfToken :: (MonadHandler m) => m Text
 getCreateCsrfToken = do
   mtoken <- getCsrfToken
   case mtoken of
-    Just token -> return token
+    Just token -> pure token
     Nothing -> do
       token <- Nonce.nonce128urlT defaultNonceGen
       setSession csrfKey token
-      return token
+      pure token
 
 authGoogleEmail ::
   (YesodAuth m) =>
@@ -228,7 +228,7 @@ authPlugin storeToken clientID clientSecret =
             , ("client_id", clientID)
             , ("access_type", "offline")
             ]
-    return $
+    pure $
       decodeUtf8 $
         toByteString $
           fromByteString "https://accounts.google.com/o/oauth2/auth"
@@ -267,7 +267,7 @@ authPlugin storeToken clientID clientSecret =
                       _ -> "Unknown error occurred: " `T.append` err
               addMessage "error" $ toHtml msg
               redirect $ logoutDest master
-        Just c -> return c
+        Just c -> pure c
 
     render <- getUrlRender
     tm <- getRouteToParent
@@ -291,7 +291,7 @@ authPlugin storeToken clientID clientSecret =
     token@(Token accessToken' tokenType') <-
       case parseEither parseJSON value of
         Left e -> error e
-        Right t -> return t
+        Right t -> pure t
 
     unless (tokenType' == "Bearer") $
       error $
@@ -305,13 +305,13 @@ authPlugin storeToken clientID clientSecret =
 
     person <- case parseEither parseJSON personValue of
       Left e -> error e
-      Right x -> return x
+      Right x -> pure x
 
     email <-
       case map emailValue $
         filter (\e -> emailType e == EmailAccount) $
           personEmails person of
-        [e] -> return e
+        [e] -> pure e
         [] -> error "No account email"
         x -> error $ "Too many account emails: " ++ show x
     setCredsRedirect $ Creds pid email $ allPersonInfo personValue
@@ -342,7 +342,7 @@ personValueRequest token = do
   req2' <-
     liftIO $
       HTTP.parseUrlThrow "https://www.googleapis.com/plus/v1/people/me"
-  return
+  pure
     req2'
       { requestHeaders =
           [ ("Authorization", encodeUtf8 $ "Bearer " <> accessToken token)
@@ -377,7 +377,7 @@ instance FromJSON Token where
 data Gender = Male | Female | OtherGender deriving (Show, Eq)
 
 instance FromJSON Gender where
-  parseJSON = withText "Gender" $ \t -> return $ case t of
+  parseJSON = withText "Gender" $ \t -> pure $ case t of
     "male" -> Male
     "female" -> Female
     _ -> OtherGender
@@ -421,7 +421,7 @@ data PersonURIType
   deriving (Show, Eq)
 
 instance FromJSON PersonURIType where
-  parseJSON = withText "PersonURIType" $ \t -> return $ case t of
+  parseJSON = withText "PersonURIType" $ \t -> pure $ case t of
     "otherProfile" -> OtherProfile
     "contributor" -> Contributor
     "website" -> Website
@@ -472,7 +472,7 @@ data OrganizationType
   deriving (Show, Eq)
 
 instance FromJSON OrganizationType where
-  parseJSON = withText "OrganizationType" $ \t -> return $ case t of
+  parseJSON = withText "OrganizationType" $ \t -> pure $ case t of
     "work" -> Work
     "school" -> School
     _ -> OrganizationType t
@@ -555,7 +555,7 @@ data RelationshipStatus
   deriving (Show, Eq)
 
 instance FromJSON RelationshipStatus where
-  parseJSON = withText "RelationshipStatus" $ \t -> return $ case t of
+  parseJSON = withText "RelationshipStatus" $ \t -> pure $ case t of
     "single" -> Single
     "in_a_relationship" -> InRelationship
     "engaged" -> Engaged
@@ -700,7 +700,7 @@ data EmailType
   deriving (Show, Eq)
 
 instance FromJSON EmailType where
-  parseJSON = withText "EmailType" $ \t -> return $ case t of
+  parseJSON = withText "EmailType" $ \t -> pure $ case t of
     "account" -> EmailAccount
     "home" -> EmailHome
     "work" -> EmailWork

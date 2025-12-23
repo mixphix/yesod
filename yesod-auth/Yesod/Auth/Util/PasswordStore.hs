@@ -215,7 +215,7 @@ genSaltIO =
 genSaltDevURandom :: IO Salt
 genSaltDevURandom = withFile "/dev/urandom" ReadMode $ \h -> do
   rawSalt <- B.hGet h 16
-  return $ makeSalt rawSalt
+  pure $ makeSalt rawSalt
 
 -- | Generate a 'Salt' from 'System.Random'.
 genSaltSysRandom :: IO Salt
@@ -279,7 +279,7 @@ makePasswordWith ::
   IO ByteString
 makePasswordWith algorithm password strength = do
   salt <- genSaltIO
-  return $ makePasswordSaltWith algorithm (2 ^) password salt strength
+  pure $ makePasswordSaltWith algorithm (2 ^) password salt strength
 
 -- | A generic version of 'makePasswordSalt', meant to give the user
 -- the maximum control over the generation parameters.

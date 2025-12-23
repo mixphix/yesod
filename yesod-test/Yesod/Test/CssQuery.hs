@@ -93,7 +93,7 @@ pIdent = do
     leadingMinus <- string "-" <|> pure ""
     nmstart <- T.singleton <$> satisfy (\c -> isAlpha c || c == '_')
     nmchar <- takeWhile (\c -> isAlphaNum c || c == '_' || c == '-')
-    return $ T.concat [ leadingMinus, nmstart, nmchar ]
+    pure $ T.concat [ leadingMinus, nmstart, nmchar ]
 
 
 pAttrValue :: Parser Text

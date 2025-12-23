@@ -34,7 +34,7 @@ instance YesodAuth A2 where
     type AuthId A2 = String
     loginDest _ = AuthR CheckR
     logoutDest _ = AuthR CheckR
-    getAuthId = return . Just . credsIdent
+    getAuthId = pure . Just . credsIdent
     showAuthId = const id
     readAuthId = const Just
     authPlugins =
@@ -84,7 +84,7 @@ instance YesodAuthEmail A2 where
             }
     getVerifyKey emailid = runDB $ do
         x <- get $ fromIntegral emailid
-        return $ maybe Nothing emailVerkey x
+        pure $ maybe Nothing emailVerkey x
     setVerifyKey emailid verkey = runDB $
         update (fromIntegral emailid) [EmailVerkey $ Just verkey]
     verifyAccount emailid' = runDB $ do
@@ -92,22 +92,22 @@ instance YesodAuthEmail A2 where
         x <- get emailid
         uid <-
             case x of
-                Nothing -> return Nothing
+                Nothing -> pure Nothing
                 Just email -> do
                     update emailid [EmailStatus True]
-                    return $ Just $ emailEmail email
-        return uid
+                    pure $ Just $ emailEmail email
+        pure uid
     getPassword email = runDB $ do
         x <- getBy $ UniqueEmail email
-        return $ x >>= emailPassword . snd
+        pure $ x >>= emailPassword . snd
     setPassword email password = runDB $
         updateWhere [EmailEmailEq email] [EmailPassword $ Just password]
     getEmailCreds email = runDB $ do
         x <- getBy $ UniqueEmail email
         case x of
-            Nothing -> return Nothing
+            Nothing -> pure Nothing
             Just (eid, e) ->
-                return $ Just EmailCreds
+                pure $ Just EmailCreds
                     { emailCredsId = fromIntegral eid
                     , emailCredsAuthId = Just $ emailEmail e
                     , emailCredsStatus = emailStatus e
@@ -115,7 +115,7 @@ instance YesodAuthEmail A2 where
                     }
     getEmail emailid = runDB $ do
         x <- get $ fromIntegral emailid
-        return $ fmap emailEmail x
+        pure $ fmap emailEmail x
 
 instance YesodPersist A2 where
     type YesodDB A2 = SqlPersist

@@ -20,7 +20,7 @@ $(do
     let (cons, decs) = mkRouteConsOpts defaultOpts [] [] $ map (fmap parseType) resources
     clause1 <- mkDispatchClause settings resources
     clause2 <- mkSimpleDispatchClause settings resources
-    return $ concat
+    pure $ concat
         [ [FunD (mkName "dispatch1") [clause1]]
         , [FunD (mkName "dispatch2") [clause2]]
         , decs

@@ -159,7 +159,7 @@ class
   authenticate creds = do
     muid <- getAuthId creds
 
-    return $ maybe (UserError Msg.InvalidLogin) Authenticated muid
+    pure $ maybe (UserError Msg.InvalidLogin) Authenticated muid
 
   -- | Determine the ID associated with the set of credentials.
   --
@@ -170,7 +170,7 @@ class
   getAuthId creds = do
     auth <- authenticate creds
 
-    return $ case auth of
+    pure $ case auth of
       Authenticated auid -> Just auid
       _ -> Nothing
 
@@ -233,7 +233,7 @@ class
 
   -- | Called on logout. By default, does nothing
   onLogout :: (MonadHandler m, master ~ HandlerSite m) => m ()
-  onLogout = return ()
+  onLogout = pure ()
 
   -- | Retrieves user credentials, if user is authenticated.
   --
@@ -306,9 +306,9 @@ defaultMaybeAuthId ::
   m (Maybe (AuthId master))
 defaultMaybeAuthId = runMaybeT $ do
   s <- MaybeT $ lookupSession credsKey
-  aid <- MaybeT $ return $ fromPathPiece s
+  aid <- MaybeT $ pure $ fromPathPiece s
   _ <- MaybeT $ cachedAuth aid
-  return aid
+  pure aid
 
 cachedAuth ::
   ( MonadHandler m
@@ -385,11 +385,11 @@ messageJsonStatus status msg html = selectRep $ do
   provideRep $ do
     let obj = object ["message" .= msg]
     void $ sendResponseStatus status obj
-    return obj
+    pure obj
 
 provideJsonMessage ::
   (Monad m) => Text -> Writer.Writer (Endo [ProvidedRep m]) ()
-provideJsonMessage msg = provideRep $ return $ object ["message" .= msg]
+provideJsonMessage msg = provideRep $ pure $ object ["message" .= msg]
 
 setCredsRedirect ::
   (MonadHandler m, YesodAuth (HandlerSite m)) =>
@@ -432,7 +432,7 @@ setCredsRedirect creds = do
   renderMessage' msg = do
     langs <- languages
     master <- getYesod
-    return $ renderAuthMessage master langs msg
+    pure $ renderAuthMessage master langs msg
 
 -- | Sets user credentials for the session after checking them with authentication backends.
 setCreds ::
@@ -449,7 +449,7 @@ setCreds doRedirects creds =
       auth <- authenticate creds
       case auth of
         Authenticated aid -> setSession credsKey $ toPathPiece aid
-        _ -> return ()
+        _ -> pure ()
 
 -- | same as defaultLayoutJson, but uses authLayout
 authLayoutJson ::
@@ -479,7 +479,7 @@ clearCreds doRedirects = do
   case (aj, doRedirects) of
     (True, _) -> sendResponse successfulLogout
     (False, True) -> redirectUltDest (logoutDest y)
-    _ -> return ()
+    _ -> pure ()
  where
   successfulLogout = object ["message" .= msg]
   msg :: Text
@@ -493,7 +493,7 @@ getCheckR = do
         setTitle "Authentication Status"
         toWidget $ html' creds
     )
-    (return $ jsonCreds creds)
+    (pure $ jsonCreds creds)
  where
   html' creds =
     [shamlet|
@@ -566,7 +566,7 @@ maybeAuthPair ::
 maybeAuthPair = runMaybeT $ do
   aid <- MaybeT maybeAuthId
   ae <- MaybeT $ cachedAuth aid
-  return (aid, ae)
+  pure (aid, ae)
 
 newtype CachedMaybeAuth val = CachedMaybeAuth {unCachedMaybeAuth :: Maybe val}
 
@@ -615,7 +615,7 @@ type instance KeyEntity (Key x) = x
 -- @since 1.1.0
 requireAuthId ::
   (MonadHandler m, YesodAuth (HandlerSite m)) => m (AuthId (HandlerSite m))
-requireAuthId = maybeAuthId >>= maybe handleAuthLack return
+requireAuthId = maybeAuthId >>= maybe handleAuthLack pure
 
 -- | Similar to 'maybeAuth', but redirects to a login page if user is not
 -- authenticated or responds with error 401 if this is an API client (expecting JSON).
@@ -631,7 +631,7 @@ requireAuth ::
   , HandlerSite m ~ master
   ) =>
   m (Entity val)
-requireAuth = maybeAuth >>= maybe handleAuthLack return
+requireAuth = maybeAuth >>= maybe handleAuthLack pure
 
 -- | Similar to 'requireAuth', but not tied to Persistent's 'Entity' type.
 -- Instead, the 'AuthId' and 'AuthEntity' are returned in a tuple.
@@ -644,7 +644,7 @@ requireAuthPair ::
   , HandlerSite m ~ master
   ) =>
   m (AuthId master, AuthEntity master)
-requireAuthPair = maybeAuthPair >>= maybe handleAuthLack return
+requireAuthPair = maybeAuthPair >>= maybe handleAuthLack pure
 
 handleAuthLack :: (YesodAuth (HandlerSite m), MonadHandler m) => m a
 handleAuthLack = do

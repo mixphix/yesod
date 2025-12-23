@@ -27,7 +27,7 @@ getSubsite :: a -> Subsite
 getSubsite _ = Subsite $(mkYesodSubDispatch resourcesSubsite)
 
 getBarR :: MonadHandler m => m T.Text
-getBarR = return $ T.pack "BarR"
+getBarR = pure $ T.pack "BarR"
 
 getBazR :: (MonadHandler m, Yesod (HandlerSite m)) => m Html
 getBazR = liftHandler $ defaultLayout [whamlet|Used Default Layout|]
@@ -41,13 +41,13 @@ getBinR = do
     |]
 
 getOnePiecesR :: Monad m => Int -> m ()
-getOnePiecesR _ = return ()
+getOnePiecesR _ = pure ()
 
 getTwoPiecesR :: Monad m => Int -> Int -> m ()
-getTwoPiecesR _ _ = return ()
+getTwoPiecesR _ _ = pure ()
 
 getThreePiecesR :: Monad m => Int -> Int -> Int -> m ()
-getThreePiecesR _ _ _ = return ()
+getThreePiecesR _ _ _ = pure ()
 
 data Y = Y
 mkYesod "Y" [parseRoutes|
@@ -59,10 +59,10 @@ mkYesod "Y" [parseRoutes|
 instance Yesod Y
 
 getRootR :: Handler ()
-getRootR = return ()
+getRootR = pure ()
 
 getFooR :: Handler ()
-getFooR = return ()
+getFooR = pure ()
 
 runner :: Session () -> IO ()
 runner f = toWaiApp Y >>= runSession f

@@ -263,7 +263,7 @@ class
   --
   -- @since 1.4.20
   verifyPassword :: Text -> SaltedPass -> AuthHandler site Bool
-  verifyPassword plain salted = return $ isValidPass plain salted
+  verifyPassword plain salted = pure $ isValidPass plain salted
 
   -- | Verify the email address on the given account.
   --
@@ -336,8 +336,8 @@ class
         | Just aid <- fromPathPiece aidT
         , toPathPiece (aid `asTypeOf` aid') == toPathPiece aid' -> do
             now <- liftIO getCurrentTime
-            return $ addUTCTime (60 * 30) time <= now
-      _ -> return True
+            pure $ addUTCTime (60 * 30) time <= now
+      _ -> pure True
 
   -- | Check that the given plain-text password meets minimum security standards.
   --
@@ -345,8 +345,8 @@ class
   checkPasswordSecurity ::
     AuthId site -> Text -> AuthHandler site (Either Text ())
   checkPasswordSecurity _ x
-    | TS.length x >= 3 = return $ Right ()
-    | otherwise = return $ Left "Password must be at least three characters"
+    | TS.length x >= 3 = pure $ Right ()
+    | otherwise = pure $ Left "Password must be at least three characters"
 
   -- | Response after sending a confirmation email.
   --
@@ -521,7 +521,7 @@ defaultEmailLoginHandler toParent = do
                       ^{fvInput passwordView}
               |]
 
-    return (userRes, widget)
+    pure (userRes, widget)
   emailSettings emailMsg = do
     FieldSettings
       { fsLabel = SomeMessage Msg.Email
@@ -541,7 +541,7 @@ defaultEmailLoginHandler toParent = do
   renderMessage' msg = do
     langs <- languages
     master <- getYesod
-    return $ renderAuthMessage master langs msg
+    pure $ renderAuthMessage master langs msg
 
 -- | Default implementation of 'registerHandler'.
 --
@@ -580,7 +580,7 @@ defaultRegisterHandler = do
                       ^{fvInput emailView}
                   |]
 
-    return (userRes, widget)
+    pure (userRes, widget)
 
 parseRegister :: Value -> Parser (Text, Maybe Text)
 parseRegister =
@@ -589,7 +589,7 @@ parseRegister =
     ( \obj -> do
         email <- obj .: "email"
         pass <- obj .:? "password"
-        return (email, pass)
+        pure (email, pass)
     )
 
 defaultRegisterHelper ::
@@ -610,10 +610,10 @@ defaultRegisterHelper allowUsername forgotPassword dest = do
         <*> iopt textField "password"
 
   creds <- case result of
-    FormSuccess (iden, pass) -> return $ Just (iden, pass)
+    FormSuccess (iden, pass) -> pure $ Just (iden, pass)
     _ -> do
       (creds :: Result Value) <- parseCheckJsonBody
-      return $ case creds of
+      pure $ case creds of
         Error _ -> Nothing
         Success val -> parseMaybe parseRegister val
 
@@ -635,13 +635,13 @@ defaultRegisterHelper allowUsername forgotPassword dest = do
       mecreds <- getEmailCreds identifier
       registerCreds <-
         case mecreds of
-          Just (EmailCreds lid _ verStatus (Just key) email) -> return $ Just (lid, verStatus, key, email)
+          Just (EmailCreds lid _ verStatus (Just key) email) -> pure $ Just (lid, verStatus, key, email)
           Just (EmailCreds lid _ verStatus Nothing email) -> do
             key <- liftIO $ randomKey y
             setVerifyKey lid key
-            return $ Just (lid, verStatus, key, email)
+            pure $ Just (lid, verStatus, key, email)
           Nothing
-            | allowUsername -> return Nothing
+            | allowUsername -> pure Nothing
             | otherwise -> do
                 key <- liftIO $ randomKey y
                 lid <- case mpass of
@@ -649,7 +649,7 @@ defaultRegisterHelper allowUsername forgotPassword dest = do
                     salted <- hashAndSaltPassword pass
                     addUnverifiedWithPass identifier key salted
                   _ -> addUnverified identifier key
-                return $ Just (lid, False, key, identifier)
+                pure $ Just (lid, False, key, identifier)
       case registerCreds of
         Nothing -> loginErrorMessageI dest (Msg.IdentifierNotFound identifier)
         Just regCreds@(_, False, _, _) -> sendConfirmationEmail regCreds
@@ -703,7 +703,7 @@ defaultForgotPasswordHandler = do
                   ^{fvLabel emailView}
                   ^{fvInput emailView}
               |]
-    return (forgotPasswordRes, widget)
+    pure (forgotPasswordRes, widget)
 
   emailSettings =
     FieldSettings
@@ -748,7 +748,7 @@ getVerifyR lid key hasSetPass = do
                   then afterVerificationWithPass <$> getYesod
                   else do
                     tp <- getRouteToParent
-                    return $ tp setpassR
+                    pure $ tp setpassR
               asHtml <$> redirect redirectRoute
             provideJsonMessage $ mr msgAv
     _ -> invalidKey mr
@@ -768,7 +768,7 @@ parseCreds =
     ( \obj -> do
         email' <- obj .: "email"
         pass <- obj .: "password"
-        return (email', pass)
+        pure (email', pass)
     )
 
 postLoginR :: (YesodAuthEmail master) => AuthHandler master TypedContent
@@ -780,12 +780,12 @@ postLoginR = do
         <*> ireq textField "password"
 
   midentifier <- case result of
-    FormSuccess (iden, pass) -> return $ Just (iden, pass)
+    FormSuccess (iden, pass) -> pure $ Just (iden, pass)
     _ -> do
       (creds :: Result Value) <- parseCheckJsonBody
       case creds of
-        Error _ -> return Nothing
-        Success val -> return $ parseMaybe parseCreds val
+        Error _ -> pure Nothing
+        Success val -> pure $ parseMaybe parseCreds val
 
   case midentifier of
     Nothing -> loginErrorMessageI LoginR Msg.NoIdentifierProvided
@@ -799,14 +799,14 @@ postLoginR = do
           (Just aid, Just email', Just True) -> do
             mrealpass <- getPassword aid
             case mrealpass of
-              Nothing -> return Nothing
+              Nothing -> pure Nothing
               Just realpass -> do
                 passValid <- verifyPassword pass realpass
-                return $
+                pure $
                   if passValid
                     then Just email'
                     else Nothing
-          _ -> return Nothing
+          _ -> pure Nothing
       let isEmail = Text.Email.Validate.isValid $ encodeUtf8 identifier
       case maid of
         Just email' ->
@@ -883,7 +883,7 @@ defaultSetPasswordHandler needOld = do
                               <input type=submit value=_{Msg.SetPassTitle}>
               |]
 
-    return (passwordFormRes, widget)
+    pure (passwordFormRes, widget)
   currentPasswordSettings =
     FieldSettings
       { fsLabel = SomeMessage Msg.CurrentPassword
@@ -917,7 +917,7 @@ parsePassword =
         email' <- obj .: "new"
         pass <- obj .: "confirm"
         curr <- obj .:? "current"
-        return (email', pass, curr)
+        pure (email', pass, curr)
     )
 
 postPasswordR :: (YesodAuthEmail master) => AuthHandler master TypedContent

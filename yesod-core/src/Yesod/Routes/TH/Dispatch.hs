@@ -67,18 +67,18 @@ mkDispatchClause MkDispatchSettings{..} resources = do
           }
   clauses <- mapM (go sdc) resources
 
-  return $
+  pure $
     Clause
       [VarP envName, VarP reqName]
       (NormalB $ helperE `AppE` pathInfo)
       [FunD helperName $ clauses ++ [clause404']]
  where
   handlePiece :: Piece a -> Q (Pat, Maybe Exp)
-  handlePiece (Static str) = return (LitP $ StringL str, Nothing)
+  handlePiece (Static str) = pure (LitP $ StringL str, Nothing)
   handlePiece (Dynamic _) = do
     x <- newName "dyn"
     let pat = ViewP (VarE 'fromPathPiece) (conPCompat 'Just [VarP x])
-    return (pat, Just $ VarE x)
+    pure (pat, Just $ VarE x)
 
   handlePieces :: [Piece a] -> Q ([Pat], [Exp])
   handlePieces = fmap (second catMaybes . unzip) . mapM handlePiece
@@ -106,7 +106,7 @@ mkDispatchClause MkDispatchSettings{..} resources = do
     helperName <- newName $ "helper" ++ name
     let helperE = VarE helperName
 
-    return $
+    pure $
       Clause
         [mkPathPat restP pats]
         (NormalB $ helperE `AppE` restE)
@@ -116,7 +116,7 @@ mkDispatchClause MkDispatchSettings{..} resources = do
 
     (chooseMethod, finalPat) <- handleDispatch dispatch dyns
 
-    return $
+    pure $
       Clause
         [mkPathPat finalPat pats]
         (NormalB chooseMethod)
@@ -128,14 +128,14 @@ mkDispatchClause MkDispatchSettings{..} resources = do
         Methods multi methods -> do
           (finalPat, mfinalE) <-
             case multi of
-              Nothing -> return (conPCompat '[] [], Nothing)
+              Nothing -> pure (conPCompat '[] [], Nothing)
               Just _ -> do
                 multiName <- newName "multi"
                 let pat =
                       ViewP
                         (VarE 'fromPathMultiPiece)
                         (conPCompat 'Just [VarP multiName])
-                return (pat, Just $ VarE multiName)
+                pure (pat, Just $ VarE multiName)
 
           let dynsMulti =
                 case mfinalE of
@@ -149,7 +149,7 @@ mkDispatchClause MkDispatchSettings{..} resources = do
                 runHandlerE <- mdsRunHandler
                 handlerE' <- mdsGetHandler mmethod name
                 handlerE <- mdsUnwrapper $ foldl' AppE handlerE' allDyns
-                return $
+                pure $
                   runHandlerE
                     `AppE` handlerE
                     `AppE` envExp
@@ -164,7 +164,7 @@ mkDispatchClause MkDispatchSettings{..} resources = do
                 let methodE = getMethod `AppE` reqExp
                 matches <- forM methods $ \method -> do
                   exp <- mkRunExp (Just method)
-                  return $ Match (LitP $ StringL method) (NormalB exp) []
+                  pure $ Match (LitP $ StringL method) (NormalB exp) []
                 match405 <- do
                   runHandlerE <- mdsRunHandler
                   handlerE <- mds405
@@ -174,10 +174,10 @@ mkDispatchClause MkDispatchSettings{..} resources = do
                           `AppE` envExp
                           `AppE` jroute
                           `AppE` reqExp
-                  return $ Match WildP (NormalB exp) []
-                return $ CaseE methodE $ matches ++ [match405]
+                  pure $ Match WildP (NormalB exp) []
+                pure $ CaseE methodE $ matches ++ [match405]
 
-          return (func, finalPat)
+          pure (func, finalPat)
         Subsite _ getSub -> do
           restPath <- newName "restPath"
           setPathInfoE <- mdsSetPathInfo
@@ -200,17 +200,17 @@ mkDispatchClause MkDispatchSettings{..} resources = do
                   `AppE` route
                   `AppE` envExp
                   `AppE` reqExp'
-          return (exp, VarP restPath)
+          pure (exp, VarP restPath)
 
   mkClause404 envE reqE = do
     handler <- mds404
     runHandler <- mdsRunHandler
     let exp = runHandler `AppE` handler `AppE` envE `AppE` ConE 'Nothing `AppE` reqE
-    return $ Clause [WildP] (NormalB exp) []
+    pure $ Clause [WildP] (NormalB exp) []
 
 defaultGetHandler :: Maybe String -> String -> Q Exp
-defaultGetHandler Nothing s = return $ VarE $ mkName $ "handle" ++ s
-defaultGetHandler (Just method) s = return $ VarE $ mkName $ map toLower method ++ s
+defaultGetHandler Nothing s = pure $ VarE $ mkName $ "handle" ++ s
+defaultGetHandler (Just method) s = pure $ VarE $ mkName $ map toLower method ++ s
 
 conPCompat :: Name -> [Pat] -> Pat
 conPCompat n = ConP n []

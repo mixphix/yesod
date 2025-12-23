@@ -24,4 +24,4 @@ fakeHandlerGetLogger getLogger app f =
   runFakeHandler mempty getLogger app f
     >>= either
       (error . ("runFakeHandler issue: " <>) . show)
-      return
+      pure

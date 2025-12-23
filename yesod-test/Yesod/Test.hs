@@ -533,7 +533,7 @@ htmlQuery' :: HasCallStack
 htmlQuery' getter errTrace query = withResponse' getter ("Tried to invoke htmlQuery' in order to read HTML of a previous response." : errTrace) $ \ res ->
   case findBySelector (simpleBody res) query of
     Left err -> failure $ query <> " did not parse: " <> T.pack (show err)
-    Right matches -> return $ map (encodeUtf8 . TL.pack) matches
+    Right matches -> pure $ map (encodeUtf8 . TL.pack) matches
 
 -- | Query the last response using CSS selectors, returns a list of matched fragments
 htmlQuery :: HasCallStack => Query -> YesodExample site [HtmlLBS]
@@ -641,7 +641,7 @@ assertHeader header value = withResponse $ \ SResponse { simpleHeaders = h } ->
 assertNoHeader :: HasCallStack => CI BS8.ByteString -> YesodExample site ()
 assertNoHeader header = withResponse $ \ SResponse { simpleHeaders = h } ->
   case lookup header h of
-    Nothing -> return ()
+    Nothing -> pure ()
     Just s  -> failure $ T.pack $ concat
         [ "Unexpected header "
         , show header
@@ -753,7 +753,7 @@ htmlNoneContain :: HasCallStack => Query -> String -> YesodExample site ()
 htmlNoneContain query search = do
   matches <- htmlQuery query
   case DL.filter (DL.isInfixOf (escape search)) (map (TL.unpack . decodeUtf8) matches) of
-    [] -> return ()
+    [] -> pure ()
     found -> failure $ "Found " <> T.pack (show $ length found) <>
                 " instances of " <> T.pack search <> " in " <> query <> " elements"
 
@@ -794,7 +794,7 @@ requireJSONResponse = do
         (failure $ T.pack $ "Expected `Content-Type: application/json` in the headers, got: " ++ show headers)
     case eitherDecode' body of
         Left err -> failure $ T.concat ["Failed to parse JSON response; error: ", T.pack err, "JSON: ", getBodyTextPreview body]
-        Right v -> return v
+        Right v -> pure v
 
 -- | Outputs the last response body to stderr (So it doesn't get captured by HSpec). Useful for debugging.
 --
@@ -920,7 +920,7 @@ genericNameFromLabel match label = do
   res <-
     case mres of
       Nothing -> failure "genericNameFromLabel: No response available"
-      Just res -> return res
+      Just res -> pure res
   let body = simpleBody res
   case genericNameFromHTML match label body of
     Left e -> failure e
@@ -1319,10 +1319,10 @@ getRequestCookies :: HasCallStack => RequestBuilder site Cookies
 getRequestCookies = do
   requestBuilderData <- getSIO
   headers <- case simpleHeaders <$> rbdResponse requestBuilderData of
-                  Just h -> return h
+                  Just h -> pure h
                   Nothing -> failure "getRequestCookies: No request has been made yet; the cookies can't be looked up."
 
-  return $ M.fromList $ map (\c -> (Cookie.setCookieName c, c)) (parseSetCookies headers)
+  pure $ M.fromList $ map (\c -> (Cookie.setCookieName c, c)) (parseSetCookies headers)
 
 
 -- | Perform a POST request to @url@.
@@ -1392,15 +1392,15 @@ followRedirect :: Yesod site
 followRedirect = do
   mr <- getResponse
   case mr of
-   Nothing ->  return $ Left "followRedirect called, but there was no previous response, so no redirect to follow"
+   Nothing ->  pure $ Left "followRedirect called, but there was no previous response, so no redirect to follow"
    Just r -> do
      if not ((H.statusCode $ simpleStatus r) `elem` [301, 302, 303, 307, 308])
-       then return $ Left "followRedirect called, but previous request was not a redirect"
+       then pure $ Left "followRedirect called, but previous request was not a redirect"
        else do
          case lookup "Location" (simpleHeaders r) of
-          Nothing -> return $ Left "followRedirect called, but no location header set"
+          Nothing -> pure $ Left "followRedirect called, but no location header set"
           Just h -> let url = TE.decodeUtf8 h in
-                     get url  >> return (Right url)
+                     get url  >> pure (Right url)
 
 -- | Parse the Location header of the last response.
 --
@@ -1414,12 +1414,12 @@ getLocation :: ParseRoute site => YesodExample site (Either T.Text (Route site))
 getLocation = do
   mr <- getResponse
   case mr of
-    Nothing -> return $ Left "getLocation called, but there was no previous response, so no Location header"
+    Nothing -> pure $ Left "getLocation called, but there was no previous response, so no Location header"
     Just r -> case lookup "Location" (simpleHeaders r) of
-      Nothing -> return $ Left "getLocation called, but the previous response has no Location header"
+      Nothing -> pure $ Left "getLocation called, but the previous response has no Location header"
       Just h -> case parseRoute $ decodePath h of
-        Nothing -> return $ Left "getLocation called, but couldn’t parse it into a route"
-        Just l -> return $ Right l
+        Nothing -> pure $ Left "getLocation called, but couldn’t parse it into a route"
+        Just l -> pure $ Right l
   where decodePath b = let (x, y) = BS8.break (== '?') b
                        in (H.decodePathSegments x, unJust <$> H.parseQueryText y)
         unJust (a, Just b) = (a, b)
@@ -1458,7 +1458,7 @@ setUrl url' = do
         (const $ error "Yesod.Test: No logger available")
         site
         (toTextUrl url')
-    url <- either (error . show) return eurl
+    url <- either (error . show) pure eurl
     let (urlPath, urlQuery) = T.break (== '?') url
     modifySIO $ \rbd -> rbd
         { rbdPath =
@@ -1651,7 +1651,7 @@ request reqBuilder = do
                           (headersForPostData rbdPostData [ ("Cookie", cookieValue) ])
                           method extraHeaders urlPath urlQuery)
         simpleRequestBody' (MultipleItemsPostData x) =
-          BSL8.fromChunks $ return $ H.renderSimpleQuery False
+          BSL8.fromChunks $ pure $ H.renderSimpleQuery False
           $ reverse $ Maybe.mapMaybe singlepartPart x
         simpleRequestBody' (BinaryPostData x) = x
         cookieValue = Builder.toByteString $ Cookie.renderCookies cookiePairs
@@ -1703,7 +1703,7 @@ instance YesodDispatch site => Hspec.Example (SIO (YesodExampleData site) a) whe
                     , yedCookies = M.empty
                     , yedResponse = Nothing
                     }
-                return ())
+                pure ())
             params
             ($ ())
 
@@ -1876,5 +1876,5 @@ htmlBody funcName = do
   res <-
     case mres of
       Nothing -> failure $ T.pack $ funcName ++ ": No response available"
-      Just res -> return res
-  return $ simpleBody res
+      Just res -> pure res
+  pure $ simpleBody res

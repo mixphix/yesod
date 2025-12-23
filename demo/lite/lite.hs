@@ -11,11 +11,11 @@ main = warp 3000 $ liteApp $ do
     onStatic "people" $ dispatchTo getPeople
     onStatic "person" $ withDynamic $ dispatchTo . getPerson
 
-getPeople = return $ toJSON $ map fst people
+getPeople = pure $ toJSON $ map fst people
 
 getPerson name =
     case lookup name people of
         Nothing -> notFound
         Just age -> selectRep $ do
-            provideRep $ return $ object ["name" .= name, "age" .= age]
-            provideRep $ return $ name <> " is " <> pack (show age) <> " years old"
+            provideRep $ pure $ object ["name" .= name, "age" .= age]
+            provideRep $ pure $ name <> " is " <> pack (show age) <> " years old"

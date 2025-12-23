@@ -137,4 +137,4 @@ defaultDevelApp load getApp = do
       pdisplay = fromMaybe p $ lookup "DISPLAY_PORT" env >>= readMaybe
   putStrLn $ "Devel application launched: http://localhost:" ++ show pdisplay
   app <- getApp conf
-  return (p, app)
+  pure (p, app)

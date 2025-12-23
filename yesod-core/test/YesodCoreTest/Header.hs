@@ -34,13 +34,13 @@ instance Yesod App
 getHeader1R :: Handler RepPlain
 getHeader1R = do
   addHeader "hello" "world"
-  return $ RepPlain $ toContent ("header test" :: Text)
+  pure $ RepPlain $ toContent ("header test" :: Text)
 
 getHeader2R :: Handler RepPlain
 getHeader2R = do
   addHeader "hello" "world"
   replaceOrAddHeader "hello" "sibi"
-  return $ RepPlain $ toContent ("header test" :: Text)
+  pure $ RepPlain $ toContent ("header test" :: Text)
 
 getHeader3R :: Handler RepPlain
 getHeader3R = do
@@ -48,7 +48,7 @@ getHeader3R = do
   addHeader "michael" "snoyman"
   addHeader "yesod" "framework"
   replaceOrAddHeader "yesod" "book"
-  return $ RepPlain $ toContent ("header test" :: Text)
+  pure $ RepPlain $ toContent ("header test" :: Text)
 
 runner :: Session () -> IO ()
 runner f = toWaiApp App >>= runSession f

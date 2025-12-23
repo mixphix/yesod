@@ -199,7 +199,7 @@ amulti ::
   AForm m [a]
 amulti field fs defs minVals ms =
   formToAForm $
-    liftM (second return) mform
+    liftM (second pure) mform
  where
   mform = do
     (fr, MultiView{..}) <- mmulti field fs defs minVals ms
@@ -230,7 +230,7 @@ amulti field fs defs minVals ms =
             , fvRequired = False
             }
 
-    return (fr, view)
+    pure (fr, view)
 
 -- | Converts a form field into a monadic form containing an arbitrary
 -- number of the given fields as specified by the user. Returns a list
@@ -264,8 +264,8 @@ mhelperMulti ::
 mhelperMulti field fs@FieldSettings{..} wrapperClass defs minVals MultiSettings{..} = do
   mp <- askParams
   (_, site, langs) <- ask
-  name <- maybe newFormIdent return fsName
-  theId <- lift $ maybe newIdent return fsId
+  name <- maybe newFormIdent pure fsName
+  theId <- lift $ maybe newIdent pure fsId
   cName <- newFormIdent
   cid <- lift newIdent
   addBtnId <- lift newIdent
@@ -287,7 +287,7 @@ mhelperMulti field fs@FieldSettings{..} wrapperClass defs minVals MultiSettings{
 
   -- get counter value (starts counting from 0)
   cr@(cRes, _) <- case mp of
-    Nothing -> return (FormMissing, Right cDef)
+    Nothing -> pure (FormMissing, Right cDef)
     Just p -> mkRes intField cfs p mfs cName onMissingFail FormSuccess
 
   -- generate counter view
@@ -300,7 +300,7 @@ mhelperMulti field fs@FieldSettings{..} wrapperClass defs minVals MultiSettings{
   -- get results of fields
   results <- case mp of
     Nothing ->
-      return $
+      pure $
         if cDef == 0
           then [(FormMissing, Left "")]
           else [(FormMissing, Right d) | d <- defs]
@@ -369,14 +369,14 @@ mhelperMulti field fs@FieldSettings{..} wrapperClass defs minVals MultiSettings{
     let mkView' ((c, (n, i)), r@(res, _)) = do
           let del = Just (mkDelBtn i, wrapperClass, c)
           fv <- mkView field fs r del msErrWidget msWrapperErrClass i n True
-          return (res, fv)
+          pure (res, fv)
         xs = zip (mkNames counter) results
         notSuccNothing (_, (r, _)) = not $ isSuccNothing r
         ys = case filter notSuccNothing xs of
           [] -> [((0, (mkName 0, mkId 0)), (FormSuccess Nothing, Left ""))] -- always need at least one value to generate a field
           zs -> zs
     rvs <- mapM mkView' ys
-    return $ unzip rvs
+    pure $ unzip rvs
 
   -- check values
   let rs' =
@@ -478,7 +478,7 @@ mhelperMulti field fs@FieldSettings{..} wrapperClass defs minVals MultiSettings{
           , fvRequired = False
           }
 
-  return (res, MultiView cView fvs btnView wrapperClass)
+  pure (res, MultiView cView fvs btnView wrapperClass)
 
 -- Search for the given field's name in the environment,
 -- parse any values found and construct a FormResult.
@@ -498,7 +498,7 @@ mkRes Field{..} _ p mfs name onMissing onFound = do
   let mvals = fromMaybe [] $ Map.lookup name p
       files = fromMaybe [] $ mfs >>= Map.lookup name
   emx <- lift $ fieldParse mvals files
-  return $ case emx of
+  pure $ case emx of
     Left msg ->
       ( FormFailure [renderMessage site langs msg]
       , maybe (Left "") Left (listToMaybe mvals)
@@ -545,7 +545,7 @@ mkView Field{..} FieldSettings{..} (res, val) mdel merrW errClass theId name isR
                 $nothing
                     ^{fv'}
             |]
-  return $
+  pure $
     FieldView
       { fvLabel = toHtml $ mr2 fsLabel
       , fvTooltip = fmap toHtml $ fmap mr2 fsTooltip

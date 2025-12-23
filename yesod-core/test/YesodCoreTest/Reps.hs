@@ -46,15 +46,15 @@ getHomeR = selectRep $ do
     rep typeJson "JSON"
 
 rep :: Monad m => ContentType -> Text -> Writer.Writer (Data.Monoid.Endo [ProvidedRep m]) ()
-rep ct t = provideRepType ct $ return (t :: Text)
+rep ct t = provideRepType ct $ pure (t :: Text)
 
 getJsonR :: Handler TypedContent
 getJsonR = selectRep $ do
   rep typeHtml "HTML"
-  provideRep $ return $ object ["message" .= ("Invalid Login" :: Text)]
+  provideRep $ pure $ object ["message" .= ("Invalid Login" :: Text)]
 
 handleChildR :: Int -> Text -> Handler ()
-handleChildR _ _ = return ()
+handleChildR _ _ = pure ()
 
 testRequest :: Int -- ^ http status code
             -> Request

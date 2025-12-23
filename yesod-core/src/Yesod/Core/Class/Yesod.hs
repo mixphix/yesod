@@ -149,7 +149,7 @@ class (RenderRoute site) => Yesod site where
   --
   -- Return 'Authorized' if the request is authorized,
   -- 'Unauthorized' a message if unauthorized.
-  -- If authentication is required, pure 'AuthenticationRequired'.
+  -- If authentication is required, return 'AuthenticationRequired'.
   isAuthorized ::
     Route site ->
     -- | is this a write request?
@@ -227,7 +227,7 @@ class (RenderRoute site) => Yesod site where
   -- JavaScript content in an external file; the "Yesod.Widget" module uses
   -- this feature.
   --
-  -- The pure value is 'Nothing' if no storing was performed; this is the
+  -- The return value is 'Nothing' if no storing was performed; this is the
   -- default implementation. A 'Just' 'Left' gives the absolute URL of the
   -- file, whereas a 'Just' 'Right' gives the type-safe URL. The former is
   -- necessary when you are serving the content outside the context of a
@@ -267,7 +267,7 @@ class (RenderRoute site) => Yesod site where
   --
   -- Note that a common technique (endorsed by the scaffolding) is to create
   -- a @Logger@ value and place it in your foundation datatype, and have this
-  -- method pure that already created value. That way, you can use that
+  -- method return that already created value. That way, you can use that
   -- same @Logger@ for printing messages during app initialization.
   --
   -- Default: the 'defaultMakeLogger' function.

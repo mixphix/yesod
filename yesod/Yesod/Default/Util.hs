@@ -60,7 +60,7 @@ addStaticContentExternal minify hash staticDir toRoute ext' _ content = do
   exists <- liftIO $ doesFileExist fn'
   unless exists $ withSinkFileCautious fn' $ \sink ->
     runConduit $ sourceLazy content' .| sink
-  return $ Just $ Right (toRoute ["tmp", pack fn], [])
+  pure $ Just $ Right (toRoute ["tmp", pack fn], [])
  where
   fn, statictmp, fn' :: FilePath
   -- by basing the hash off of the un-minified content, we avoid a costly
@@ -128,7 +128,7 @@ combine func file isReload tls = do
           , show file
           , ", but no templates were found."
           ]
-    exps -> return $ DoE Nothing $ map NoBindS exps
+    exps -> pure $ DoE Nothing $ map NoBindS exps
  where
   qmexps :: Q [Maybe Exp]
   qmexps = mapM go tls
@@ -168,6 +168,6 @@ warnUnlessExists shouldWarn x wrap glob f = do
       if wrap
         then do
           tw <- [|toWidget|]
-          return $ Just $ tw `AppE` ex
-        else return $ Just ex
-    else return Nothing
+          pure $ Just $ tw `AppE` ex
+        else pure $ Just ex
+    else pure Nothing

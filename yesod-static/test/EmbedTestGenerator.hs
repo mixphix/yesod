@@ -21,8 +21,8 @@ e1 = def
         { ebHaskellName = Just $ pathToName "e1"
         , ebLocation = "e1"
         , ebMimeType = "text/plain"
-        , ebProductionContent = return $ TL.encodeUtf8 "e1 production"
-        , ebDevelReload = [| return $ TL.encodeUtf8 $ TL.pack "e1 devel" |]
+        , ebProductionContent = pure $ TL.encodeUtf8 "e1 production"
+        , ebDevelReload = [| pure $ TL.encodeUtf8 $ TL.pack "e1 devel" |]
         , ebDevelExtraFiles = Nothing
         }
 
@@ -31,8 +31,8 @@ e2 = def
         { ebHaskellName = Just $ pathToName "e2"
         , ebLocation = "dir/e2"
         , ebMimeType = "abcdef"
-        , ebProductionContent = return $ TL.encodeUtf8 "e2 production"
-        , ebDevelReload = [| return $ TL.encodeUtf8 $ TL.pack "e2 devel" |]
+        , ebProductionContent = pure $ TL.encodeUtf8 "e2 production"
+        , ebDevelReload = [| pure $ TL.encodeUtf8 $ TL.pack "e2 devel" |]
         , ebDevelExtraFiles = Nothing
         }
 
@@ -41,25 +41,25 @@ e3 = def
         { ebHaskellName = Nothing
         , ebLocation = "xxxx/e3"
         , ebMimeType = "yyy"
-        , ebProductionContent = return $ TL.encodeUtf8 "e3 production"
-        , ebDevelReload = [| return $ TL.encodeUtf8 $ TL.pack "e3 devel" |]
+        , ebProductionContent = pure $ TL.encodeUtf8 "e3 production"
+        , ebDevelReload = [| pure $ TL.encodeUtf8 $ TL.pack "e3 devel" |]
         , ebDevelExtraFiles = Nothing
         }
 
 devExtra :: [T.Text] -> IO (Maybe (MimeType, BL.ByteString))
-devExtra ["dev1"] = return $ Just ("mime", "dev1 content")
-devExtra ["dir", "dev2"] = return $ Just ("mime2", "dev2 content")
-devExtra _ = return Nothing
+devExtra ["dev1"] = pure $ Just ("mime", "dev1 content")
+devExtra ["dir", "dev2"] = pure $ Just ("mime2", "dev2 content")
+devExtra _ = pure Nothing
 
 -- Entry with devel extra files
 e4 = def
         { ebHaskellName = Just $ pathToName "e4"
         , ebLocation = "e4"
         , ebMimeType = "text/plain"
-        , ebProductionContent = return $ TL.encodeUtf8 "e4 production"
-        , ebDevelReload = [| return $ TL.encodeUtf8 $ TL.pack "e4 devel" |]
+        , ebProductionContent = pure $ TL.encodeUtf8 "e4 production"
+        , ebDevelReload = [| pure $ TL.encodeUtf8 $ TL.pack "e4 devel" |]
         , ebDevelExtraFiles = Just [| devExtra |]
         }
 
 testGen :: Generator
-testGen = return [e1, e2, e3, e4]
+testGen = pure [e1, e2, e3, e4]

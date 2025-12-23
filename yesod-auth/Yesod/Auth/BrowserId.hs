@@ -76,11 +76,11 @@ authBrowserId bis@BrowserIdSettings{..} =
           ("GET", [assertion]) -> do
             audience <-
               case bisAudience of
-                Just a -> return a
+                Just a -> pure a
                 Nothing -> do
                   r <- getUrlRender
                   tm <- getRouteToParent
-                  return $ T.takeWhile (/= '/') $ stripScheme $ r $ tm LoginR
+                  pure $ T.takeWhile (/= '/') $ stripScheme $ r $ tm LoginR
             manager <- authHttpManager
             memail <- checkAssertion audience assertion manager
             case memail of
@@ -169,11 +169,11 @@ createOnClickOverride BrowserIdSettings{..} toMaster mOnRegistration = do
 
   autologin <- (== Just "true") <$> lookupGetParam "autologin"
   when autologin $ toWidget [julius|#{rawJS onclick}();|]
-  return onclick
+  pure onclick
  where
   getPath t = fromMaybe t $ do
     uri <- parseURI $ T.unpack t
-    return $ T.pack $ uriPath uri
+    pure $ T.pack $ uriPath uri
 
 -- | Generates a function to handle on-click events, and returns that function
 -- name.

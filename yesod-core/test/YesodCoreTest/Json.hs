@@ -32,10 +32,10 @@ getHomeR = do
     val <- requireInsecureJsonBody
     case Map.lookup ("foo" :: Text) val of
         Nothing -> invalidArgs ["foo not found"]
-        Just foo -> return $ RepPlain $ toContent (foo :: Text)
+        Just foo -> pure $ RepPlain $ toContent (foo :: Text)
 
 getMultiplePiecesR :: Int -> Int -> Handler ()
-getMultiplePiecesR _ _ = return ()
+getMultiplePiecesR _ _ = pure ()
 
 test :: String
      -> ByteString

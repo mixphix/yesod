@@ -127,7 +127,7 @@ type FileEnv = Map.Map Text [FileInfo]
 -- >   (field1F, field1V) <- mreq textField MsgField1 Nothing
 -- >   (field2F, field2V) <- mreq (checkWith field1F textField) MsgField2 Nothing
 -- >   (field3F, field3V) <- mreq (checkWith field1F textField) MsgField3 Nothing
--- >   return
+-- >   pure
 -- >     ( MyForm <$> field1F <*> field2F <*> field3F
 -- >     , [field1V, field2V, field3V]
 -- >     )
@@ -138,7 +138,7 @@ type FileEnv = Map.Map Text [FileInfo]
 -- >   field1F <- wreq textField MsgField1 Nothing
 -- >   field2F <- wreq (checkWith field1F textField) MsgField2 Nothing
 -- >   field3F <- wreq (checkWith field1F textField) MsgField3 Nothing
--- >   return $ MyForm <$> field1F <*> field2F <*> field3F
+-- >   pure $ MyForm <$> field1F <*> field2F <*> field3F
 --
 -- @since 1.4.14
 type WForm m a = MForm (WriterT [FieldView (HandlerSite m)] m) a
@@ -169,11 +169,11 @@ instance (Monad m) => Functor (AForm m) where
    where
     go (w, x, y, z) = (fmap f w, x, y, z)
 instance (Monad m) => Applicative (AForm m) where
-  pure x = AForm $ const $ const $ \ints -> return (FormSuccess x, id, ints, mempty)
+  pure x = AForm $ const $ const $ \ints -> pure (FormSuccess x, id, ints, mempty)
   (AForm f) <*> (AForm g) = AForm $ \mr env ints -> do
     (a, b, ints', c) <- f mr env ints
     (x, y, ints'', z) <- g mr env ints'
-    return (a <*> x, b . y, ints'', c <> z)
+    pure (a <*> x, b . y, ints'', c <> z)
 
 #if MIN_VERSION_transformers(0,6,0)
 instance Monad m => Monad (AForm m) where
@@ -182,7 +182,7 @@ instance Monad m => Monad (AForm m) where
         case a of
           FormSuccess r -> do
             (x, y, ints'', z) <- unAForm (k r) mr env ints'
-            return (x, b . y, ints'', c <> z)
+            pure (x, b . y, ints'', c <> z)
           FormFailure err -> pure (FormFailure err, b, ints', c)
           FormMissing -> pure (FormMissing, b, ints', c)
 #endif
@@ -195,7 +195,7 @@ instance (Monad m, Semigroup a) => Semigroup (AForm m a) where
 instance MonadTrans AForm where
   lift f = AForm $ \_ _ ints -> do
     x <- f
-    return (FormSuccess x, id, ints, mempty)
+    pure (FormSuccess x, id, ints, mempty)
 
 data FieldSettings master = FieldSettings
   { fsLabel :: SomeMessage master

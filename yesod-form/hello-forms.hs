@@ -106,7 +106,7 @@ myValidForm = fixType $ runFormGet $ renderTable $ pure (,,)
   where
     inPast x = do
         now <- liftIO $ getCurrentTime
-        return $ if utctDay now < x
+        pure $ if utctDay now < x
                     then Left ("Need a date in the past" :: Text)
                     else Right x
 

@@ -106,7 +106,7 @@ instance Serialize SessionCookie where
     a <- getTime
     b <- get
     c <- map (first T.pack) <$> get
-    return $ SessionCookie (Left a) b (Map.fromList c)
+    pure $ SessionCookie (Left a) b (Map.fromList c)
 
 data ClientSessionDateCache
   = ClientSessionDateCache
@@ -292,7 +292,7 @@ data WidgetData site = WidgetData
   }
 
 instance (a ~ ()) => Monoid (WidgetFor site a) where
-  mempty = return ()
+  mempty = pure ()
 instance (a ~ ()) => Semigroup (WidgetFor site a) where
   x <> y = x >> y
 
@@ -356,7 +356,7 @@ type ContentType = ByteString -- FIXME Text?
 --
 -- And in the implementation:
 --
--- > return $ JSONResponse $ CreateUserResponse userId
+-- > pure $ JSONResponse $ CreateUserResponse userId
 --
 -- @since 1.6.14
 data JSONResponse a where
@@ -488,7 +488,6 @@ instance Applicative (WidgetFor site) where
   pure = WidgetFor . const . pure
   (<*>) = ap
 instance Monad (WidgetFor site) where
-  return = pure
   WidgetFor x >>= f = WidgetFor $ \wd -> do
     a <- x wd
     unWidgetFor (f a) wd
@@ -506,7 +505,7 @@ instance MonadUnliftIO (WidgetFor site) where
   withRunInIO inner = WidgetFor $ \x -> inner $ flip unWidgetFor x
 
 instance MonadReader (WidgetData site) (WidgetFor site) where
-  ask = WidgetFor return
+  ask = WidgetFor pure
   local f (WidgetFor g) = WidgetFor $ g . f
 
 instance MonadThrow (WidgetFor site) where
@@ -520,14 +519,13 @@ instance MonadLogger (WidgetFor site) where
     rheLog (handlerEnv $ wdHandler wd) a b c (toLogStr d)
 
 instance MonadLoggerIO (WidgetFor site) where
-  askLoggerIO = WidgetFor $ return . rheLog . handlerEnv . wdHandler
+  askLoggerIO = WidgetFor $ pure . rheLog . handlerEnv . wdHandler
 
 -- Instances for HandlerFor
 instance Applicative (HandlerFor site) where
-  pure = HandlerFor . const . return
+  pure = HandlerFor . const . pure
   (<*>) = ap
 instance Monad (HandlerFor site) where
-  return = pure
   HandlerFor x >>= f = HandlerFor $ \r -> x r >>= \x' -> unHandlerFor (f x') r
 instance MonadIO (HandlerFor site) where
   liftIO = HandlerFor . const
@@ -538,7 +536,7 @@ instance PrimMonad (HandlerFor site) where
   primitive = liftIO . primitive
 
 instance MonadReader (HandlerData site site) (HandlerFor site) where
-  ask = HandlerFor return
+  ask = HandlerFor pure
   local f (HandlerFor g) = HandlerFor $ g . f
 
 -- | @since 1.4.38
@@ -557,7 +555,7 @@ instance MonadLogger (HandlerFor site) where
     rheLog (handlerEnv hd) a b c (toLogStr d)
 
 instance MonadLoggerIO (HandlerFor site) where
-  askLoggerIO = HandlerFor $ \hd -> return (rheLog (handlerEnv hd))
+  askLoggerIO = HandlerFor $ \hd -> pure (rheLog (handlerEnv hd))
 
 instance Monoid (UniqueList x) where
   mempty = UniqueList id
@@ -599,15 +597,14 @@ newtype SubHandlerFor sub master a = SubHandlerFor
   deriving (Functor)
 
 instance Applicative (SubHandlerFor child master) where
-  pure = SubHandlerFor . const . return
+  pure = SubHandlerFor . const . pure
   (<*>) = ap
 instance Monad (SubHandlerFor child master) where
-  return = pure
   SubHandlerFor x >>= f = SubHandlerFor $ \r -> x r >>= \x' -> unSubHandlerFor (f x') r
 instance MonadIO (SubHandlerFor child master) where
   liftIO = SubHandlerFor . const
 instance MonadReader (HandlerData child master) (SubHandlerFor child master) where
-  ask = SubHandlerFor return
+  ask = SubHandlerFor pure
   local f (SubHandlerFor g) = SubHandlerFor $ g . f
 
 -- | @since 1.4.38
@@ -626,4 +623,4 @@ instance MonadLogger (SubHandlerFor child master) where
     rheLog (handlerEnv sd) a b c (toLogStr d)
 
 instance MonadLoggerIO (SubHandlerFor child master) where
-  askLoggerIO = SubHandlerFor $ return . rheLog . handlerEnv
+  askLoggerIO = SubHandlerFor $ pure . rheLog . handlerEnv

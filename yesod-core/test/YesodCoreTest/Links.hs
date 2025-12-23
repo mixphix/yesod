@@ -59,19 +59,19 @@ getTextsR :: [Text] -> Handler Html
 getTextsR foos = defaultLayout $ toWidget [hamlet|%#{show foos}%|]
 
 getRT1 :: [Text] -> Handler ()
-getRT1 _ = return ()
+getRT1 _ = pure ()
 
 getRT2 :: Vector String -> Handler ()
-getRT2 _ = return ()
+getRT2 _ = pure ()
 
 getRT3 :: Vector (Maybe Int) -> Handler ()
-getRT3 _ = return ()
+getRT3 _ = pure ()
 
 getRT4 :: Foo Int Int -> Handler ()
-getRT4 _ = return ()
+getRT4 _ = pure ()
 
 getRT4Spaces :: Foo Int Int -> Handler ()
-getRT4Spaces _ = return ()
+getRT4Spaces _ = pure ()
 
 linksTest :: Spec
 linksTest = describe "Test.Links" $ do

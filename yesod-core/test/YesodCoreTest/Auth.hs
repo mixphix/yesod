@@ -30,23 +30,23 @@ mkYesod "App" [parseRoutes|
 |]
 
 instance Yesod App where
-    isAuthorized NoAuthR _ = return Authorized
-    isAuthorized NeedsLoginJsonR _ = return AuthenticationRequired
-    isAuthorized NeedsLoginHtmlR _ = return AuthenticationRequired
-    isAuthorized ReadOnlyR False = return Authorized
-    isAuthorized ReadOnlyR True = return $ Unauthorized "Read only"
-    isAuthorized ForbiddenR _ = return $ Unauthorized "Forbidden"
+    isAuthorized NoAuthR _ = pure Authorized
+    isAuthorized NeedsLoginJsonR _ = pure AuthenticationRequired
+    isAuthorized NeedsLoginHtmlR _ = pure AuthenticationRequired
+    isAuthorized ReadOnlyR False = pure Authorized
+    isAuthorized ReadOnlyR True = pure $ Unauthorized "Read only"
+    isAuthorized ForbiddenR _ = pure $ Unauthorized "Forbidden"
     authRoute _ = Just NoAuthR
 
 handleNoAuthR, handleReadOnlyR, handleForbiddenR :: Handler ()
-handleNoAuthR     = return ()
-handleReadOnlyR   = return ()
-handleForbiddenR  = return ()
+handleNoAuthR     = pure ()
+handleReadOnlyR   = pure ()
+handleForbiddenR  = pure ()
 
 handleNeedsLoginJsonR :: Handler RepJson
-handleNeedsLoginJsonR = return $ repJson $ object []
+handleNeedsLoginJsonR = pure $ repJson $ object []
 handleNeedsLoginHtmlR :: Handler Html
-handleNeedsLoginHtmlR = return ""
+handleNeedsLoginHtmlR = pure ""
 
 test :: String -- ^ method
      -> String -- ^ path

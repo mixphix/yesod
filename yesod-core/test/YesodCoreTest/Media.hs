@@ -21,11 +21,11 @@ instance Yesod Y where
     addStaticContent _ _ content = do
         route <- getCurrentRoute
         case route of
-            Just StaticR -> return $ Just $ Left $
+            Just StaticR -> pure $ Just $ Left $
                         if content == "foo2{bar:baz}"
                             then "screen.css"
                             else "all.css"
-            _ -> return Nothing
+            _ -> pure Nothing
 
 getRootR :: Handler Html
 getRootR = defaultLayout $ do

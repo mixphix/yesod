@@ -76,11 +76,11 @@ errFromShow :: SomeException -> IO ErrorResponse
 errFromShow x = do
   text <-
     evaluate (T.pack $ show x) `catchAny` \_ ->
-      return
+      pure
         ( T.pack
             "Yesod.Core.Internal.Run.errFromShow: show of an exception threw an exception"
         )
-  return $ InternalError text
+  pure $ InternalError text
 
 -- | Do a basic run of a handler, getting some contents and the final
 -- @GHState@. The @GHState@ unfortunately may contain some impure
@@ -107,17 +107,17 @@ basicRunHandler rhe handler yreq resState = do
           res <- unHandlerFor handler (hd istate)
           tc <- evaluate (toTypedContent res)
           -- Success! Wrap it up in an @HCContent@
-          return (HCContent defaultStatus tc)
+          pure (HCContent defaultStatus tc)
       )
       ( \e ->
           case fromException e of
-            Just e' -> return e'
+            Just e' -> pure e'
             Nothing -> HCError <$> toErrorHandler e
       )
 
   -- Get the raw state and return
   state <- I.readIORef istate
-  return (state, contents')
+  pure (state, contents')
  where
   defState =
     GHState
@@ -165,9 +165,9 @@ handleError rhe yreq resState finalSession headers e0 = do
             status
               | status' == defaultStatus = getStatus e
               | otherwise = status'
-         in return $ YRPlain status hs' ct c sess
-      YRWai _ -> return yar
-      YRWaiApp _ -> return yar
+         in pure $ YRPlain status hs' ct c sess
+      YRWai _ -> pure yar
+      YRWaiApp _ -> pure yar
 
 -- | Convert a @HandlerContents@ into a @YesodResponse@
 handleContents ::
@@ -183,7 +183,7 @@ handleContents handleError' finalSession headers contents =
       ec' <- evaluateContent c
       case ec' of
         Left e -> handleError' e
-        Right c' -> return $ YRPlain status headers ct c' finalSession
+        Right c' -> pure $ YRPlain status headers ct c' finalSession
     HCError e -> handleError' e
     HCRedirect status loc -> do
       let disable_caching x =
@@ -193,7 +193,7 @@ handleContents handleError' finalSession headers contents =
           hs =
             (if status /= H.movedPermanently301 then disable_caching else id) $
               Header "Location" (encodeUtf8 loc) : headers
-      return $
+      pure $
         YRPlain
           status
           hs
@@ -201,7 +201,7 @@ handleContents handleError' finalSession headers contents =
           emptyContent
           finalSession
     HCSendFile ct fp p ->
-      return $
+      pure $
         YRPlain
           H.status200
           headers
@@ -209,15 +209,15 @@ handleContents handleError' finalSession headers contents =
           (ContentFile fp p)
           finalSession
     HCCreated loc ->
-      return $
+      pure $
         YRPlain
           H.status201
           (Header "Location" (encodeUtf8 loc) : headers)
           typePlain
           emptyContent
           finalSession
-    HCWai r -> return $ YRWai r
-    HCWaiApp a -> return $ YRWaiApp a
+    HCWai r -> pure $ YRWai r
+    HCWaiApp a -> pure $ YRWaiApp a
 
 -- | Evaluate the given value. If an exception is thrown, use it to
 -- replace the provided contents and then return @mempty@ in place of the
@@ -252,7 +252,7 @@ runHandler rhe@RunHandlerEnv{..} handler yreq = withInternalState $ \resState ->
     evalFallback rheCatchHandlerExceptions contents0 (ghsSession state)
   (headers, contents2) <-
     evalFallback rheCatchHandlerExceptions contents1 (appEndo (ghsHeaders state) [])
-  contents3 <- (evaluate contents2) `catchAny` (fmap HCError . toErrorHandler)
+  contents3 <- evaluate contents2 `catchAny` (fmap HCError . toErrorHandler)
 
   -- Convert the HandlerContents into the final YesodResponse
   handleContents
@@ -270,7 +270,7 @@ safeEh log' er req = do
     log' $(qLocation >>= liftLoc) "yesod-core" LevelError $
       toLogStr $
         "Error handler errored out: " ++ show er
-  return $
+  pure $
     YRPlain
       H.status500
       []
@@ -327,7 +327,7 @@ runFakeHandler fakeSessionMap logger site handler = liftIO $ do
           handler'
       errHandler err req = do
         liftIO $ I.writeIORef ret (Left err)
-        return $
+        pure $
           YRPlain
             H.status500
             []
@@ -367,11 +367,11 @@ yesodRunner handler' YesodRunnerEnv{..} route req sendResponse = do
   case (mmaxLen, requestBodyLength req) of
     (Just maxLen, KnownLength len) | maxLen < len -> sendResponse (tooLargeResponse maxLen len)
     _ -> do
-      let dontSaveSession _ = return []
+      let dontSaveSession _ = pure []
       (session, saveSession) <-
         liftIO $
           maybe
-            (return (Map.empty, dontSaveSession))
+            (pure (Map.empty, dontSaveSession))
             (`sbLoadSession` req)
             yreSessionBackend
       maxExpires <- yreGetMaxExpires

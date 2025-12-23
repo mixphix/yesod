@@ -75,7 +75,7 @@ instance YesodAuth App where
     -- Need to find the UserId for the given email address.
     getAuthId creds = runDB $ do
         x <- insertBy $ User (credsIdent creds) Nothing Nothing False
-        return $ Just $
+        pure $ Just $
             case x of
                 Left (Entity userid _) -> userid -- newly added user
                 Right userid -> userid -- existing user
@@ -119,7 +119,7 @@ instance YesodAuthEmail App where
         getSESCredentials :: IO SES
         getSESCredentials = do
             key <- getsesAccessKey
-            return SES {
+            pure SES {
                 sesTo = [(TE.encodeUtf8 email)],
                 sesFrom = "noreply@example.com",
                 sesAccessKey =  TE.encodeUtf8 $ accessKey key,
@@ -131,7 +131,7 @@ instance YesodAuthEmail App where
 
             case decode ymlConfig of
                 Nothing -> do Data.ByteString.Char8.putStrLn "Error while parsing secrets.yaml"; System.Exit.exitWith (ExitFailure 1)
-                Just c -> return c
+                Just c -> pure c
 
         textPart = Part
             { partType = "text/plain; charset=utf-8"
@@ -165,17 +165,17 @@ instance YesodAuthEmail App where
     verifyAccount uid = runDB $ do
         mu <- get uid
         case mu of
-            Nothing -> return Nothing
+            Nothing -> pure Nothing
             Just u -> do
                 update uid [UserVerified =. True]
-                return $ Just uid
+                pure $ Just uid
     getPassword = runDB . fmap (join . fmap userPassword) . get
     setPassword uid pass = runDB $ update uid [UserPassword =. Just pass]
     getEmailCreds email = runDB $ do
         mu <- getBy $ UniqueUser email
         case mu of
-            Nothing -> return Nothing
-            Just (Entity uid u) -> return $ Just EmailCreds
+            Nothing -> pure Nothing
+            Just (Entity uid u) -> pure $ Just EmailCreds
                 { emailCredsId = uid
                 , emailCredsAuthId = Just uid
                 , emailCredsStatus = isJust $ userPassword u

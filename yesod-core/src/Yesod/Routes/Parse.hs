@@ -246,7 +246,7 @@ data TypeTree
 toTypeTree :: [String] -> Maybe TypeTree
 toTypeTree orig = do
   (x, []) <- gos orig
-  return x
+  pure x
  where
   go [] = Nothing
   go ("(" : xs) = do

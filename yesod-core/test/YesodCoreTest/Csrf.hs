@@ -97,5 +97,5 @@ requireCsrfCookie :: Session SetCookie
 requireCsrfCookie = do
     cookies <- getClientCookies
     case Map.lookup defaultCsrfCookieName cookies of
-        Just c -> return c
+        Just c -> pure c
         Nothing -> error "Failed to lookup CSRF cookie"

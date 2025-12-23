@@ -29,10 +29,10 @@ app :: Session () -> IO ()
 app = yesod Y
 
 getRootR :: Handler ()
-getRootR = return ()
+getRootR = pure ()
 
 postRootR :: Handler ()
-postRootR = return ()
+postRootR = pure ()
 
 getR301, getR303, getR307, getRRegular, getEtagR, getWeakEtagR :: Handler ()
 getR301 = redirectWith H.status301 RootR

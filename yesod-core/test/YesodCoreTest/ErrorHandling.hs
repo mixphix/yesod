@@ -113,19 +113,19 @@ getOverrideStatusR :: Handler ()
 getOverrideStatusR = invalidArgs ["OVERRIDE"]
 
 getBuilderR :: Handler TypedContent
-getBuilderR = return $ TypedContent "ignored" $ ContentBuilder (error "builder-3.14159") Nothing
+getBuilderR = pure $ TypedContent "ignored" $ ContentBuilder (error "builder-3.14159") Nothing
 
 getFileBadLenR :: Handler TypedContent
-getFileBadLenR = return $ TypedContent "ignored" $ ContentFile "yesod-core.cabal" (error "filebadlen")
+getFileBadLenR = pure $ TypedContent "ignored" $ ContentFile "yesod-core.cabal" (error "filebadlen")
 
 getFileBadNameR :: Handler TypedContent
-getFileBadNameR = return $ TypedContent "ignored" $ ContentFile (error "filebadname") Nothing
+getFileBadNameR = pure $ TypedContent "ignored" $ ContentFile (error "filebadname") Nothing
 
 goodBuilderContent :: Builder
 goodBuilderContent = mconcat $ replicate 100 $ "This is a test\n"
 
 getGoodBuilderR :: Handler TypedContent
-getGoodBuilderR = return $ TypedContent "text/plain" $ toContent goodBuilderContent
+getGoodBuilderR = pure $ TypedContent "text/plain" $ toContent goodBuilderContent
 
 -- this handler kills it's own thread
 getThreadKilledR :: Handler Html
@@ -167,7 +167,7 @@ postArgsNotValidR :: Handler TypedContent
 postArgsNotValidR = invalidArgs ["Doesn't matter.", "Don't want it."]
 
 getOnlyPlainTextR :: Handler TypedContent
-getOnlyPlainTextR = selectRep $ provideRepType "text/plain" $ return ("Only plain text." :: Text)
+getOnlyPlainTextR = selectRep $ provideRepType "text/plain" $ pure ("Only plain text." :: Text)
 
 errorHandlingTest :: Spec
 errorHandlingTest = describe "Test.ErrorHandling" $ do
@@ -241,7 +241,7 @@ caseErrorInBodyNoEval = do
     eres <- try $ runner $ do
         request defaultRequest { pathInfo = ["error-in-body-noeval"] }
     case eres of
-        Left (_ :: SomeException) -> return ()
+        Left (_ :: SomeException) -> pure ()
         Right x -> error $ "Expected an exception, got: " ++ show x
 
 caseOverrideStatus :: IO ()
@@ -374,4 +374,4 @@ canTimeoutARunner = do
     res <- request defaultRequest { pathInfo = ["sleep-sec"] }
     assertStatus 200 res -- if 500, it's catching the timeout exception
     pure () -- it should've timeout by now, either being 500 or Nothing
-  res `shouldBe` Nothing -- make sure that pure statement didn't happen.
+  res `shouldBe` Nothing -- make sure that return statement didn't happen.

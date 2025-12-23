@@ -12,10 +12,10 @@ instance Yesod App
 mkYesodDispatch "App" resourcesApp
 
 getHomeR :: Handler String
-getHomeR = return "Hello"
+getHomeR = pure "Hello"
 
 getSomethingR :: Handler String
-getSomethingR = return "Hello"
+getSomethingR = pure "Hello"
 
 getAppCacheR :: Handler AppCache
 getAppCacheR = $(appCache resourcesApp)

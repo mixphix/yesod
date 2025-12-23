@@ -54,8 +54,8 @@ authDummy =
   dispatch "POST" [] = do
     (jsonResult :: Result Value) <- parseCheckJsonBody
     eIdent <- case jsonResult of
-      Success val -> return $ A.parseEither identParser val
-      Error err -> return $ Left err
+      Success val -> pure $ A.parseEither identParser val
+      Error err -> pure $ Left err
     case eIdent of
       Right ident ->
         setCredsRedirect $ Creds "dummy" ident []

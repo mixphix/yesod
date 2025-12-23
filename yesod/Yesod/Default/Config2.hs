@@ -95,12 +95,12 @@ getDevSettings settings = do
   let p = fromMaybe (getPort settings) $ lookup "PORT" env >>= readMaybe
       pdisplay = fromMaybe p $ lookup "DISPLAY_PORT" env >>= readMaybe
   putStrLn $ "Devel application launched: http://localhost:" ++ show pdisplay
-  return $ setPort p settings
+  pure $ setPort p settings
 
 -- | Helper for develMain in the scaffolding.
 develMainHelper :: IO (Settings, Application) -> IO ()
 develMainHelper getSettingsApp = do
-  _ <- installHandler sigINT (Catch $ return ()) Nothing
+  _ <- installHandler sigINT (Catch $ pure ()) Nothing
 
   putStrLn "Starting devel application"
   (settings, app) <- getSettingsApp
@@ -121,4 +121,4 @@ develMainHelper getSettingsApp = do
 makeYesodLogger :: LoggerSet -> IO Logger
 makeYesodLogger loggerSet' = do
   (getter, _) <- clockDateCacher
-  return $! Yesod.Core.Types.Logger loggerSet' getter
+  pure $! Yesod.Core.Types.Logger loggerSet' getter

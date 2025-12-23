@@ -37,12 +37,12 @@ injectDefaults :: String                                     -- ^ prefix, progra
 injectDefaults prefix lenses parser = do
   e      <- getEnvironment
   config <- (readFile . (</> "config") =<< getAppUserDataDirectory prefix)
-              `E.catch` \(_::E.SomeException) -> return ""
+              `E.catch` \(_::E.SomeException) -> pure ""
   let env = M.fromList . filter ((== [prefix]) . take 1 . fst) $
                configLines config <>                              -- config first
                map (\(k,v) -> (splitOn "_" $ map toLower k, v)) e -- env vars override config
       p' =  parser { infoParser = injectDefaultP env [prefix] (infoParser parser) }
-  return $ foldl' (\p (key,l) -> fmap (updateA env key l) p) p' lenses
+  pure $ foldl' (\p (key,l) -> fmap (updateA env key l) p) p' lenses
 
 updateA :: M.Map [String] String -> String -> (a -> [String] -> a) -> a -> a
 updateA env key upd a =

@@ -85,9 +85,9 @@ do
         , mds404 = [|pack "404"|]
         , mds405 = [|pack "405"|]
         , mdsGetHandler = defaultGetHandler
-        , mdsUnwrapper = return
+        , mdsUnwrapper = pure
         } ress
-    return $
+    pure $
         InstanceD
             Nothing
             []

@@ -48,7 +48,7 @@ $newline never
     token2 <- lookupPostParams "token"
     token <- case token1 ++ token2 of
       [] -> invalidArgs ["token: Value not supplied"]
-      x : _ -> return $ unpack x
+      x : _ -> pure $ unpack x
     manager <- authHttpManager
     Rpxnow.Identifier ident extra <- Rpxnow.authenticate apiKey token manager
     let creds =

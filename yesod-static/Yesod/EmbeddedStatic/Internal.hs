@@ -73,7 +73,7 @@ mkStr = litE . stringL
 
 -- | Create a 'ComputedEntry' for development mode, reloading the content on every request.
 devEmbed :: Entry -> IO ComputedEntry
-devEmbed e = return computed
+devEmbed e = pure computed
  where
   st =
     Static.EmbeddableEntry
@@ -83,7 +83,7 @@ devEmbed e = return computed
           Right
             [|
               $(ebDevelReload e) >>= \c ->
-                return (T.pack (base64md5 c), c)
+                pure (T.pack (base64md5 c), c)
               |]
       }
   link =
@@ -109,7 +109,7 @@ prodEmbed e = do
           , Static.eMimeType = ebMimeType e
           , Static.eContent = Left (T.pack hash, ct)
           }
-  return $ ComputedEntry (ebHaskellName e) st link
+  pure $ ComputedEntry (ebHaskellName e) st link
 
 toApp :: (Request -> IO Response) -> Application
 toApp f req g = f req >>= g
@@ -120,7 +120,7 @@ tryExtraDevelFiles = toApp . tryExtraDevelFiles'
 
 tryExtraDevelFiles' ::
   [[T.Text] -> IO (Maybe (MimeType, BL.ByteString))] -> Request -> IO Response
-tryExtraDevelFiles' [] _ = return $ responseLBS status404 [] ""
+tryExtraDevelFiles' [] _ = pure $ responseLBS status404 [] ""
 tryExtraDevelFiles' (f : fs) r = do
   mct <- liftIO $ f $ drop 1 $ pathInfo r -- drop the initial "res"
   case mct of
@@ -132,8 +132,8 @@ tryExtraDevelFiles' (f : fs) r = do
             , ("ETag", hash)
             ]
       case lookup "If-None-Match" (requestHeaders r) of
-        Just h | hash == h -> return $ responseLBS status304 headers ""
-        _ -> return $ responseLBS status200 headers ct
+        Just h | hash == h -> pure $ responseLBS status304 headers ""
+        _ -> pure $ responseLBS status200 headers ct
 
 -- | Helper to create the development application at runtime
 develApp ::
@@ -172,13 +172,13 @@ staticContentHelper getStatic staticR minify ext _ ct = do
           { fileGetSize = fromIntegral $ BL.length content
           , fileToResponse = \s h -> responseLBS s h content
           , fileName = unsafeToPiece filename
-          , fileGetHash = return hash'
+          , fileGetHash = pure hash'
           , fileGetModified = Nothing
           }
   liftIO $ atomicModifyIORef' wIORef $ \m ->
     (M.insertWith const filename file m, ())
 
-  return $ Just $ Right (staticR $ EmbeddedWidgetR filename, [])
+  pure $ Just $ Right (staticR $ EmbeddedWidgetR filename, [])
 
 -- | Create a wai-app-static settings based on the IORef inside the EmbeddedStaic site.
 widgetSettings :: EmbeddedStatic -> StaticSettings
@@ -187,5 +187,5 @@ widgetSettings es = (defaultWebAppSettings ""){ssLookupFile = lookupFile}
   lookupFile [_, p] = do
     -- The first part of the path is "widget"
     m <- readIORef $ widgetFiles es
-    return $ maybe LRNotFound LRFile $ M.lookup (fromPiece p) m
-  lookupFile _ = return LRNotFound
+    pure $ maybe LRNotFound LRFile $ M.lookup (fromPiece p) m
+  lookupFile _ = pure LRNotFound

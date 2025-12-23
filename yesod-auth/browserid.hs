@@ -41,7 +41,7 @@ instance YesodAuth BID where
     type AuthId BID = Text
     loginDest _ = AfterLoginR
     logoutDest _ = AuthR LoginR
-    getAuthId = return . Just . credsIdent
+    getAuthId = pure . Just . credsIdent
     authPlugins _ = [authBrowserId def]
     authHttpManager = httpManager
     maybeAuthId = lookupSession credsKey

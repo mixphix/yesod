@@ -23,13 +23,13 @@ breadcrumbs ::
 breadcrumbs = do
   x <- getCurrentRoute
   case x of
-    Nothing -> return ("Not found", [])
+    Nothing -> pure ("Not found", [])
     Just y -> do
       (title, next) <- breadcrumb y
       z <- go [] next
-      return (title, z)
+      pure (title, z)
  where
-  go back Nothing = return back
+  go back Nothing = pure back
   go back (Just this)
     | this `elem` map fst back =
         error $ "yesod-core: infinite recursion in breadcrumbs at " ++ show this

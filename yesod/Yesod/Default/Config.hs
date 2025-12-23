@@ -64,12 +64,12 @@ parseArgConfig = do
   (portS, args') <- getPort id args
   portI <-
     case reads portS of
-      (i, _) : _ -> return i
+      (i, _) : _ -> pure i
       [] -> error $ "Invalid port value: " ++ show portS
   case args' of
     [e] -> do
       case reads $ capitalize e of
-        (e', _) : _ -> return $ ArgConfig e' portI
+        (e', _) : _ -> pure $ ArgConfig e' portI
         [] -> error $ "Invalid environment, valid entries are: " ++ show envs
     _ -> do
       pn <- getProgName
@@ -79,9 +79,9 @@ parseArgConfig = do
  where
   getPort front [] = do
     env <- getEnvironment
-    return (fromMaybe "0" $ lookup "PORT" env, front [])
-  getPort front ("--port" : p : rest) = return (p, front rest)
-  getPort front ("-p" : p : rest) = return (p, front rest)
+    pure (fromMaybe "0" $ lookup "PORT" env, front [])
+  getPort front ("--port" : p : rest) = pure (p, front rest)
+  getPort front ("-p" : p : rest) = pure (p, front rest)
   getPort front (arg : rest) = getPort (front . (arg :)) rest
 
   capitalize [] = []
@@ -108,7 +108,7 @@ fromArgsSettings cs = do
           Nothing -> config
           Just ar -> config{appRoot = T.pack ar}
 
-  return $
+  pure $
     if port args /= 0
       then config'{appPort = port args}
       else config'
@@ -119,7 +119,7 @@ fromArgs ::
   (env -> Object -> Parser extra) ->
   IO (AppConfig env extra)
 fromArgs getExtra = fromArgsSettings $ \env ->
-  return
+  pure
     (configSettings env)
       { csParseExtra = getExtra
       }
@@ -157,18 +157,18 @@ configSettings :: (Show env) => env -> ConfigSettings env ()
 configSettings env0 =
   ConfigSettings
     { csEnv = env0
-    , csParseExtra = \_ _ -> return ()
-    , csFile = \_ -> return "config/settings.yml"
+    , csParseExtra = \_ _ -> pure ()
+    , csFile = \_ -> pure "config/settings.yml"
     , csGetObject = \env v -> do
         envs <-
           case v of
-            Object obj -> return obj
+            Object obj -> pure obj
             _ -> fail "Expected Object"
         let senv = show env
             tenv = fromString senv
         maybe
           (error $ "Could not find environment: " ++ senv)
-          return
+          pure
           (M.lookup tenv envs)
     }
 
@@ -203,11 +203,11 @@ loadConfig ::
 loadConfig (ConfigSettings env parseExtra getFile getObject) = do
   fp <- getFile env
   etopObj <- decodeFileEither fp
-  topObj <- either (const $ fail "Invalid YAML file") return etopObj
+  topObj <- either (const $ fail "Invalid YAML file") pure etopObj
   obj <- getObject env topObj
   m <-
     case obj of
-      Object m -> return m
+      Object m -> pure m
       _ -> fail "Expected map"
 
   let host = fromString $ T.unpack $ fromMaybe "*" $ lookupScalar "host" m
@@ -217,19 +217,19 @@ loadConfig (ConfigSettings env parseExtra getFile getObject) = do
   -- Handle the DISPLAY_PORT environment variable for yesod devel
   approot <-
     case T.stripSuffix ":3000" approot' of
-      Nothing -> return approot'
+      Nothing -> pure approot'
       Just prefix -> do
         envVars <- getEnvironment
         case lookup "DISPLAY_PORT" envVars of
-          Nothing -> return approot'
-          Just p -> return $ prefix `T.append` T.pack (':' : p)
+          Nothing -> pure approot'
+          Just p -> pure $ prefix `T.append` T.pack (':' : p)
 
   extra <- parseEitherM (parseExtra env) m
 
   -- set some default arguments
   let port' = fromMaybe 80 mport
 
-  return $
+  pure $
     AppConfig
       { appEnv = env
       , appPort = port'
@@ -240,7 +240,7 @@ loadConfig (ConfigSettings env parseExtra getFile getObject) = do
  where
   lookupScalar k m =
     case M.lookup k m of
-      Just (String t) -> return t
+      Just (String t) -> pure t
       Just _ -> fail $ "Invalid value for: " ++ show k
       Nothing -> fail $ "Not found: " ++ show k
 

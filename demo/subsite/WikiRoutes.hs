@@ -27,7 +27,7 @@ data Wiki = Wiki
 class (RenderMessage master FormMessage, Yesod master) => YesodWiki master where
     -- | Write protection. By default, no protection.
     canEditPage :: Texts -> HandlerT master IO Bool
-    canEditPage _ = return True
+    canEditPage _ = pure True
 
 -- | Define our routes. We'll have a homepage that lists all of the pages, a
 -- read route for reading a page, and an edit route.

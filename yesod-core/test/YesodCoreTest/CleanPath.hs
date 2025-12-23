@@ -75,14 +75,14 @@ instance Yesod Y where
         go x = Just $ TE.encodeUtf8 x
 
 getFooR :: Handler RepPlain
-getFooR = return $ RepPlain "foo"
+getFooR = pure $ RepPlain "foo"
 
 getFooStringR :: String -> Handler RepPlain
-getFooStringR = return . RepPlain . toContent
+getFooStringR = pure . RepPlain . toContent
 
 getBarR, getPlainR :: Handler RepPlain
-getBarR = return $ RepPlain "bar"
-getPlainR = return $ RepPlain "plain"
+getBarR = pure $ RepPlain "bar"
+getPlainR = pure $ RepPlain "plain"
 
 cleanPathTest :: Spec
 cleanPathTest =

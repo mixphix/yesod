@@ -67,7 +67,7 @@ robots :: MonadHandler m
        -> m Text
 robots smurl = do
     ur <- getUrlRender
-    return $ T.unlines
+    pure $ T.unlines
         [ "Sitemap: " `T.append` ur smurl
         , "User-agent: *"
         ]
@@ -115,11 +115,11 @@ sitemapConduit render = do
     goUrl SitemapUrl {..} = element "url" [] $ do
         element "loc" [] $ yield $ EventContent $ ContentText $ render sitemapLoc
         case sitemapLastMod of
-            Nothing -> return ()
+            Nothing -> pure ()
             Just lm -> element "lastmod" [] $ yield $ EventContent $ ContentText $ formatW3 lm
         case sitemapChangeFreq of
-            Nothing -> return ()
+            Nothing -> pure ()
             Just scf -> element "changefreq" [] $ yield $ EventContent $ ContentText $ showFreq scf
         case sitemapPriority of
-            Nothing -> return ()
+            Nothing -> pure ()
             Just p -> element "priority" [] $ yield $ EventContent $ ContentText $ pack $ show p

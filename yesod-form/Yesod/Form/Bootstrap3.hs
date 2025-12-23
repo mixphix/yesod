@@ -186,7 +186,7 @@ renderBootstrap3 formLayout aform fragment = do
                         ^{fvInput view}
                         ^{helpWidget view}
                 |]
-  return (res, widget)
+  pure (res, widget)
 
 -- | (Internal) Render a help widget for tooltips and errors.
 helpWidget :: FieldView site -> WidgetFor site ()
@@ -237,7 +237,7 @@ instance (IsString msg) => IsString (BootstrapSubmit msg) where
 bootstrapSubmit ::
   (RenderMessage site msg, HandlerSite m ~ site, MonadHandler m) =>
   BootstrapSubmit msg -> AForm m ()
-bootstrapSubmit = formToAForm . liftM (second return) . mbootstrapSubmit
+bootstrapSubmit = formToAForm . liftM (second pure) . mbootstrapSubmit
 
 -- | Same as 'bootstrapSubmit' but for monadic forms.  This isn't
 -- as useful since you're not going to use 'renderBootstrap3'
@@ -259,7 +259,7 @@ mbootstrapSubmit (BootstrapSubmit msg classes attrs) =
           , fvErrors = Nothing
           , fvRequired = False
           }
-   in return (res, fv)
+   in pure (res, fv)
 
 -- | A royal hack.  Magic id used to identify whether a field
 -- should have no label.  A valid HTML4 id which is probably not

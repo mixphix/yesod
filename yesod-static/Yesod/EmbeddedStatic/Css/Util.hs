@@ -87,7 +87,7 @@ parseCssFileWith urlParser fp = do
   mparsed <- parseCssWith urlParser <$> T.readFile fp
   case mparsed of
     Left err -> fail $ "Unable to parse " ++ fp ++ ": " ++ err
-    Right css -> return css
+    Right css -> pure css
 
 parseCssFileUrls :: FilePath -> IO Css
 parseCssFileUrls = parseCssFileWith checkForUrl
@@ -104,11 +104,11 @@ loadImages ::
   FilePath -> Css -> (FilePath -> IO (Maybe a)) -> IO (M.HashMap UrlReference a)
 loadImages dir css loadImage = foldM load M.empty $ concat [map snd block | (_, block) <- css]
  where
-  load imap (Left _) = return imap
-  load imap (Right f) | f `M.member` imap = return imap
+  load imap (Left _) = pure imap
+  load imap (Right f) | f `M.member` imap = pure imap
   load imap (Right f@(UrlReference path)) = do
     img <- loadImage (dir </> T.unpack path)
-    return $ maybe imap (\i -> M.insert f i imap) img
+    pure $ maybe imap (\i -> M.insert f i imap) img
 
 -- | If you tack on additional CSS post-processing filters, they use this as an argument.
 data CssGeneration = CssGeneration
@@ -173,7 +173,7 @@ parseBackground loc file = do
   let b64 = B64.encode $ T.encodeUtf8 (T.pack $ takeDirectory file) <> url
       newUrl = B.fromString (takeFileName loc) <> B.fromString "/" <> B.fromByteString b64
 
-  return $
+  pure $
     B.fromByteString "background-image"
       <> B.fromByteString s1
       <> B.fromByteString ":"
@@ -196,7 +196,7 @@ develBgImgB64 loc file = do
   ct <- BL.readFile file
   case PBL.eitherResult $ PBL.parse (parseDev loc file mempty) ct of
     Left err -> error err
-    Right b -> return $ B.toLazyByteString b
+    Right b -> pure $ B.toLazyByteString b
 
 -- | Serve the extra image files during development
 develExtraFiles :: Location -> [T.Text] -> IO (Maybe (MimeType, BL.ByteString))
@@ -211,5 +211,5 @@ develExtraFiles loc parts =
                     dropExtension $
                       T.unpack file
       ct <- BL.readFile $ T.unpack file'
-      return $ Just (defaultMimeLookup file', ct)
-    _ -> return Nothing
+      pure $ Just (defaultMimeLookup file', ct)
+    _ -> pure Nothing

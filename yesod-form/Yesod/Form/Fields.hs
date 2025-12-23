@@ -394,34 +394,34 @@ timeParser = do
   h <- hour
   _ <- char ':'
   m <- minsec MsgInvalidMinute
-  hasSec <- (char ':' >> return True) <|> return False
-  s <- if hasSec then minsec MsgInvalidSecond else return 0
+  hasSec <- (char ':' >> pure True) <|> pure False
+  s <- if hasSec then minsec MsgInvalidSecond else pure 0
   skipSpace
   isPM <-
-    (string "am" >> return (Just False))
-      <|> (string "AM" >> return (Just False))
-      <|> (string "pm" >> return (Just True))
-      <|> (string "PM" >> return (Just True))
-      <|> return Nothing
+    (string "am" >> pure (Just False))
+      <|> (string "AM" >> pure (Just False))
+      <|> (string "pm" >> pure (Just True))
+      <|> (string "PM" >> pure (Just True))
+      <|> pure Nothing
   h' <-
     case isPM of
-      Nothing -> return h
+      Nothing -> pure h
       Just x
         | h <= 0 || h > 12 -> fail $ show $ MsgInvalidHour $ pack $ show h
-        | h == 12 -> return $ if x then 12 else 0
-        | otherwise -> return $ h + (if x then 12 else 0)
+        | h == 12 -> pure $ if x then 12 else 0
+        | otherwise -> pure $ h + (if x then 12 else 0)
   skipSpace
   endOfInput
-  return $ TimeOfDay h' m s
+  pure $ TimeOfDay h' m s
  where
   hour = do
     x <- digit
-    y <- (return <$> digit) <|> return []
+    y <- (pure <$> digit) <|> pure []
     let xy = x : y
     let i = read xy
     if i < 0 || i >= 24
       then fail $ show $ MsgInvalidHour $ pack xy
-      else return i
+      else pure i
   minsec :: (Num a) => (Text -> FormMessage) -> Parser a
   minsec msg = do
     x <- digit
@@ -430,7 +430,7 @@ timeParser = do
     let i = read xy
     if i < 0 || i >= 60
       then fail $ show $ msg $ pack xy
-      else return $ fromIntegral (i :: Int)
+      else pure $ fromIntegral (i :: Int)
 
 -- | Creates an input with @type="email"@. Yesod will validate the email's correctness according to RFC5322 and canonicalize it by removing comments and whitespace (see "Text.Email.Validate").
 emailField ::
@@ -593,12 +593,12 @@ multiSelectField ::
 multiSelectField ioptlist =
   Field parse view UrlEncoded
  where
-  parse [] _ = return $ Right Nothing
+  parse [] _ = pure $ Right Nothing
   parse optlist _ = do
     mapopt <- olReadExternal <$> ioptlist
     case mapM mapopt optlist of
-      Nothing -> return $ Left "Error parsing values"
-      Just res -> return $ Right $ Just res
+      Nothing -> pure $ Left "Error parsing values"
+      Just res -> pure $ Right $ Just res
 
   view theId name attrs val isReq = do
     opts <- fmap olOptions $ handlerToWidget ioptlist
@@ -773,7 +773,7 @@ boolField ::
   (Monad m) => (RenderMessage (HandlerSite m) FormMessage) => Field m Bool
 boolField =
   Field
-    { fieldParse = \e _ -> return $ boolParser e
+    { fieldParse = \e _ -> pure $ boolParser e
     , fieldView = \theId name attrs val isReq ->
         [whamlet|
 $newline never
@@ -813,7 +813,7 @@ $newline never
 checkBoxField :: (Monad m) => Field m Bool
 checkBoxField =
   Field
-    { fieldParse = \e _ -> return $ checkBoxParser e
+    { fieldParse = \e _ -> pure $ checkBoxParser e
     , fieldView = \theId name attrs val _ ->
         [whamlet|
 $newline never
@@ -911,7 +911,7 @@ optionsPairs opts = do
           , optionInternalValue = internal
           , optionExternalValue = pack $ show external
           }
-  return $ mkOptionList (zipWith mkOption [1 :: Int ..] opts)
+  pure $ mkOptionList (zipWith mkOption [1 :: Int ..] opts)
 
 -- | Creates an 'OptionList' from a list of (display-value, internal value) pairs.
 --
@@ -930,7 +930,7 @@ optionsPairsGrouped opts = do
           }
       opts' = enumerateSublists opts :: [(msg, [(Int, (msg, a))])]
       opts'' = map (\(x, ys) -> (mr x, map mkOption ys)) opts'
-  return $ mkOptionListGrouped opts''
+  pure $ mkOptionListGrouped opts''
 
 -- | Helper to enumerate sublists with one consecutive index.
 enumerateSublists :: forall a b. [(a, [b])] -> [(a, [(Int, b)])]
@@ -987,7 +987,7 @@ optionsPersist :: ( YesodPersist site, PersistEntity a
 optionsPersist filts ords toDisplay = fmap mkOptionList $ do
   mr <- getMessageRender
   pairs <- runDB $ selectList filts ords
-  return $
+  pure $
     map
       ( \(Entity key value) ->
           Option
@@ -1033,7 +1033,7 @@ optionsPersistKey
 optionsPersistKey filts ords toDisplay = fmap mkOptionList $ do
   mr <- getMessageRender
   pairs <- runDB $ selectList filts ords
-  return $
+  pure $
     map
       ( \(Entity key value) ->
           Option
@@ -1064,7 +1064,7 @@ selectFieldHelper outside onOpt inside grpHdr opts' =
   Field
     { fieldParse = \x _ -> do
         opts <- fmap flattenOptionList opts'
-        return $ selectParser opts x
+        pure $ selectParser opts x
     , fieldView = \theId name attrs val isReq -> do
         outside theId name attrs $ do
           optsFlat <- fmap (olOptions . flattenOptionList) $ handlerToWidget opts'
@@ -1078,7 +1078,7 @@ selectFieldHelper outside onOpt inside grpHdr opts' =
               forM_ grps $ \(grp, opts) -> do
                 case grpHdr of
                   Just hdr -> hdr grp
-                  Nothing -> return ()
+                  Nothing -> pure ()
                 constructOptions theId name attrs val isReq opts
     , fieldEnctype = UrlEncoded
     }
@@ -1111,7 +1111,7 @@ fileField ::
   Field m FileInfo
 fileField =
   Field
-    { fieldParse = \_ files -> return $
+    { fieldParse = \_ files -> pure $
         case files of
           [] -> Right Nothing
           file : _ -> Right $ Just file
@@ -1133,7 +1133,7 @@ fileAFormReq fs = AForm $ \(site, langs) menvs ints -> do
           Nothing ->
             let i' = incrInts ints
              in (pack $ 'f' : show i', i')
-  id' <- maybe newIdent return $ fsId fs
+  id' <- maybe newIdent pure $ fsId fs
   let (res, errs) =
         case menvs of
           Nothing -> (FormMissing, Nothing)
@@ -1156,7 +1156,7 @@ $newline never
           , fvErrors = errs
           , fvRequired = True
           }
-  return (res, (fv :), ints', Multipart)
+  pure (res, (fv :), ints', Multipart)
 
 fileAFormOpt ::
   (MonadHandler m) =>
@@ -1169,7 +1169,7 @@ fileAFormOpt fs = AForm $ \(master, langs) menvs ints -> do
           Nothing ->
             let i' = incrInts ints
              in (pack $ 'f' : show i', i')
-  id' <- maybe newIdent return $ fsId fs
+  id' <- maybe newIdent pure $ fsId fs
   let (res, errs) =
         case menvs of
           Nothing -> (FormMissing, Nothing)
@@ -1190,7 +1190,7 @@ $newline never
           , fvErrors = errs
           , fvRequired = False
           }
-  return (res, (fv :), ints', Multipart)
+  pure (res, (fv :), ints', Multipart)
 
 incrInts :: Ints -> Ints
 incrInts (IntSingle i) = IntSingle $ i + 1

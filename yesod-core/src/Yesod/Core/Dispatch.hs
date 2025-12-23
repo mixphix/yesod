@@ -111,7 +111,7 @@ toWaiAppPlain site = do
   logger <- makeLogger site
   sb <- makeSessionBackend site
   getMaxExpires <- getGetMaxExpires
-  return $
+  pure $
     toWaiAppYre
       YesodRunnerEnv
         { yreLogger = logger
@@ -215,7 +215,7 @@ toWaiAppLogger logger site = do
     LevelInfo
     (toLogStr ("Application launched" :: S.ByteString))
   middleware <- mkDefaultMiddlewares logger
-  return $ middleware $ toWaiAppYre yre
+  pure $ middleware $ toWaiAppYre yre
 
 -- | A convenience method to run an application using the Warp webserver on the
 -- specified port. Automatically calls 'toWaiApp'. Provides a default set of
@@ -281,7 +281,7 @@ mkDefaultMiddlewares logger = do
         { destination = Network.Wai.Middleware.RequestLogger.Logger $ loggerSet logger
         , outputFormat = Apache FromSocket
         }
-  return $ logWare . defaultMiddlewaresNoLogging
+  pure $ logWare . defaultMiddlewaresNoLogging
 
 -- | All of the default middlewares, excluding logging.
 --

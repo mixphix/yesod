@@ -56,7 +56,7 @@ keter cabal noBuild noCopyTo buildArgs = do
                             Just (Bool False) ->
                                 error $ "Please edit your Keter config file at "
                                      ++ ketercfg
-                            _ -> return value
+                            _ -> pure value
             Just _ -> error $ ketercfg ++ " is not an object"
 
     env' <- getEnvironment
@@ -64,7 +64,7 @@ keter cabal noBuild noCopyTo buildArgs = do
     files <- getDirectoryContents "."
     project <-
         case mapMaybe (T.stripSuffix ".cabal" . T.pack) files of
-            [x] -> return x
+            [x] -> pure x
             [] -> error "No cabal file found"
             _ -> error "Too many cabal files found"
 
@@ -78,7 +78,7 @@ keter cabal noBuild noCopyTo buildArgs = do
             tellExtra (String s) = tellFile s
             tellExtra _          = error "extraFiles should be a flat array"
         findFiles (Array v) = Fold.mapM_ findFiles v
-        findFiles _ = return ()
+        findFiles _ = pure ()
         bundleFiles = execWriter $ findFiles $ Object value
 
         collapse = T.unpack . T.intercalate "/" . collapse' . T.splitOn "/" . T.pack
@@ -90,7 +90,7 @@ keter cabal noBuild noCopyTo buildArgs = do
     unless noBuild $ do
         stackQueryRunSuccess <- do
             eres <- try $ readProcessWithExitCode "stack" ["query"] "" :: IO (Either IOException (ExitCode, String, String))
-            return $ either (\_ -> False) (\(ec, _, _) -> (ec == ExitSuccess)) eres
+            pure $ either (\_ -> False) (\(ec, _, _) -> (ec == ExitSuccess)) eres
 
         let inStackExec = isJust $ lookup "STACK_EXE" env'
             mStackYaml = lookup "STACK_YAML" env'
@@ -132,13 +132,13 @@ keter cabal noBuild noCopyTo buildArgs = do
 
             in run "scp" args
 
-        _ -> return ()
+        _ -> pure ()
   where
     -- Test for alternative config file extension (yaml or yml).
     keterConfig = do
         let yml = "config/keter.yml"
         ymlExists <- doesFileExist yml
-        return $ if ymlExists then yml else "config/keter.yaml"
+        pure $ if ymlExists then yml else "config/keter.yaml"
 
 try' :: IO a -> IO (Either SomeException a)
 try' = try

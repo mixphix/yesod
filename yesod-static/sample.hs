@@ -21,7 +21,7 @@ instance Yesod Sample where
 
 getRootR = do
     redirect "static"
-    return ()
+    pure ()
 
 main = do
     s <- static "."

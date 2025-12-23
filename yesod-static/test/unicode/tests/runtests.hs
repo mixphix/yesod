@@ -137,7 +137,7 @@ main = hspecX $ do
   describe "fileServerApp" $ do
     let fileDate = do
           stat <- liftIO $ getFileStatus $ "tests/" ++ file
-          return $ formatHTTPDate . epochTimeToHTTPDate $ modificationTime stat
+          pure $ formatHTTPDate . epochTimeToHTTPDate $ modificationTime stat
 
     it "directory listing for index" $ fileServerApp $ do
       resp <- request (setRawPathInfo defRequest "a/")

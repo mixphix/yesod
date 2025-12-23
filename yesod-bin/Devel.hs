@@ -106,7 +106,7 @@ writeSpecialFile sp = do
 removeSpecialFile :: SpecialFile -> IO ()
 removeSpecialFile sp = removeFile (specialFilePath sp) `Ex.catch` \e ->
   if isDoesNotExistError e
-    then return ()
+    then pure ()
     else Ex.throwIO e
 
 -- | Get an absolute path to the special file
@@ -117,7 +117,7 @@ canonicalizeSpecialFile sp = do
         file = takeFileName fp
     createDirectoryIfMissing True dir
     dir' <- canonicalizePath dir
-    return $ dir' </> file
+    pure $ dir' </> file
 
 -- | Used as a callback from "stack build --exec" to write the signal file
 develSignal :: IO ()
@@ -146,11 +146,11 @@ reverseProxy opts appPortVar = do
     let onExc _ req
             | maybe False (("application/json" `elem`) . parseHttpAccept)
                 (lookup "accept" $ requestHeaders req) =
-                    return $ responseLBS status503
+                    pure $ responseLBS status503
                         [ ("Retry-After", "1")
                         ]
                         "{\"message\":\"Recompiling\"}"
-            | otherwise = return $ responseLBS status200
+            | otherwise = pure $ responseLBS status200
                 [ ("content-type", "text/html")
                 , ("Refresh", "1")
                 ]
@@ -160,7 +160,7 @@ reverseProxy opts appPortVar = do
                 (const $ do
                     appPort <- atomically $ readTVar appPortVar
                     sayV $ "revProxy: appPort " ++ (show appPort)
-                    return $
+                    pure $
                         ReverseProxy.WPRProxyDest
                         $ ProxyDest "127.0.0.1" appPort)
 #if MIN_VERSION_http_reverse_proxy(0, 6, 0)
@@ -215,10 +215,10 @@ checkPort :: Int -> IO Bool
 checkPort p = do
     es <- Ex.tryIO $ bindPortTCP p "*4"
     case es of
-        Left _ -> return False
+        Left _ -> pure False
         Right s -> do
             Network.Socket.close s
-            return True
+            pure True
 
 -- | Get a random, unused port.
 getNewPort :: DevelOpts -> IO Int
@@ -226,7 +226,7 @@ getNewPort opts = do
     (port, socket) <- bindRandomPortTCP "*"
     when (verbose opts) $ sayString $ "Got new port: " ++ show port
     Network.Socket.close socket
-    return port
+    pure port
 
 -- | Utility function
 unlessM :: Monad m => m Bool -> m () -> m ()
@@ -243,7 +243,7 @@ checkDevelFile =
     loop (x:xs) = do
         e <- doesFileExist x
         if e
-            then return x
+            then pure x
             else loop xs
 
 stackSuccessString :: ByteString
@@ -267,7 +267,7 @@ updateAppPort bs buildStarted appPortVar = do
     (False, False) -> do
       writeTVar appPortVar (-1 :: Int)
       writeTVar buildStarted True
-    (True, False) -> return ()
+    (True, False) -> pure ()
     (_, True) -> writeTVar buildStarted False
 
 -- | Get the set of all flags available in the given cabal file
@@ -457,7 +457,7 @@ devel opts passThroughArgs = do
                 if useReverseProxy opts
                     then getNewPort opts
                     -- no reverse proxy, so use the develPort directly
-                    else return (develPort opts)
+                    else pure (develPort opts)
             atomically $ writeTVar appPortVar newPort
 
             -- Modified environment

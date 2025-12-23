@@ -45,7 +45,7 @@ instance YesodAuth BID where
     type AuthId BID = Text
     loginDest _ = AfterLoginR
     logoutDest _ = AuthR LoginR
-    getAuthId = return . Just . credsIdentClaimed
+    getAuthId = pure . Just . credsIdentClaimed
     authPlugins _ = [authOpenId Claimed []]
     authHttpManager = httpManager
     maybeAuthId = lookupSession credsKey

@@ -74,7 +74,7 @@
 --   authPlugins _ = [authHardcoded]
 --
 --   authenticate Creds{..} =
---     return
+--     pure
 --       (case credsPlugin of
 --          "hardcoded" ->
 --            case lookupUser credsIdent of
@@ -99,8 +99,8 @@
 -- >
 -- >   getAuthEntity (Left uid) =
 -- >     do x <- runDB (get uid)
--- >        return (Left <$> x)
--- >   getAuthEntity (Right username) = return (Right <$> lookupUser username)
+-- >        pure (Left <$> x)
+-- >   getAuthEntity (Right username) = pure (Right <$> lookupUser username)
 --
 --
 -- == Define 'YesodAuthHardcoded' instance
@@ -109,8 +109,8 @@
 --
 -- @
 -- instance YesodAuthHardcoded App where
---   validatePassword u = return . validPassword u
---   doesUserNameExist  = return . isJust . lookupUser
+--   validatePassword u = pure . validPassword u
+--   doesUserNameExist  = pure . isJust . lookupUser
 --
 -- validPassword :: Text -> Text -> Bool
 -- validPassword u p =

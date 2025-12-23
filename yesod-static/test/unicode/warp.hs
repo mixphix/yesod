@@ -45,5 +45,5 @@ main = do
         { ssFolder = docroot
         , ssIndices = if noindex then [] else index
         , ssListing = Just defaultListing
-        , ssGetMimeType = return . mimeTypeByExt mimeMap defaultMimeType
+        , ssGetMimeType = pure . mimeTypeByExt mimeMap defaultMimeType
         }

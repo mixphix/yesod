@@ -43,15 +43,15 @@ embDirAt = $(embedDirAt "xxx" "test/embed-dir" >>=
 
 concatR :: GenTestResult
 concatR = $(concatFiles "out.txt" [ "test/embed-dir/abc/def.txt", "test/embed-dir/foo"] >>=
-            testOneEntry (Just "out_txt") "out.txt" (return "Yesod Rocks\nBar\n")
+            testOneEntry (Just "out_txt") "out.txt" (pure "Yesod Rocks\nBar\n")
            )
 
 -- The transform function should only run at compile for the production content
 concatWithR :: GenTestResult
 concatWithR = $(concatFilesWith "out2.txt"
-                                (\x -> return $ x `BL.append` "Extra")
+                                (\x -> pure $ x `BL.append` "Extra")
                                 [ "test/embed-dir/abc/def.txt", "test/embed-dir/foo"] >>=
-                testOneEntry (Just "out2_txt") "out2.txt" (return "Yesod Rocks\nBar\nExtra")
+                testOneEntry (Just "out2_txt") "out2.txt" (pure "Yesod Rocks\nBar\nExtra")
                )
 
 fileGenSpecs :: Spec
@@ -74,9 +74,9 @@ fileGenSpecs = do
 
     describe "Concat Files" $ do
         it "simple concat" $
-            assertGenResult (return "Yesod Rocks\nBar\n") concatR
+            assertGenResult (pure "Yesod Rocks\nBar\n") concatR
         it "concat with processing function" $
-            assertGenResult (return "Yesod Rocks\nBar\n") concatWithR -- no Extra since this is development
+            assertGenResult (pure "Yesod Rocks\nBar\n") concatWithR -- no Extra since this is development
 
     describe "Compress" $ do
         it "compress tool function" $ do
@@ -87,8 +87,8 @@ fileGenSpecs = do
         it "tryCompressTools" $ do
             out <- flip tryCompressTools "abcdef"
                             [ const $ throwIO $ ErrorCall "An expected error"
-                            , const $ return "foo"
-                            , const $ return "bar"
+                            , const $ pure "foo"
+                            , const $ pure "bar"
                             ]
             assertEqual "" "foo" out
             out2 <- flip tryCompressTools "abcdef"

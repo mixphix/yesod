@@ -73,14 +73,14 @@ authOAuth oauth mkCreds = AuthPlugin name dispatch login
   dispatch "GET" [] = do
     tokSec <-
       lookupSession oauthSessionName >>= \case
-        Just t -> return t
+        Just t -> pure t
         Nothing -> liftIO $ fail "lookupSession could not find session"
     deleteSession oauthSessionName
     reqTok <-
       if oauthVersion oauth == OAuth10
         then do
           oaTok <- runInputGet $ ireq textField "oauth_token"
-          return $
+          pure $
             Credential
               [ ("oauth_token", encodeUtf8 oaTok)
               , ("oauth_token_secret", encodeUtf8 tokSec)
@@ -91,7 +91,7 @@ authOAuth oauth mkCreds = AuthPlugin name dispatch login
               (,)
                 <$> ireq textField "oauth_verifier"
                 <*> ireq textField "oauth_token"
-          return $
+          pure $
             Credential
               [ ("oauth_verifier", encodeUtf8 verifier)
               , ("oauth_token", encodeUtf8 oaTok)
@@ -112,7 +112,7 @@ mkExtractCreds :: Text -> String -> Credential -> IO (Creds m)
 mkExtractCreds name idName (Credential dic) = do
   let mcrId = decodeUtf8With lenientDecode <$> lookup (encodeUtf8 $ T.pack idName) dic
   case mcrId of
-    Just crId -> return $ Creds name crId $ map (bsToText *** bsToText) dic
+    Just crId -> pure $ Creds name crId $ map (bsToText *** bsToText) dic
     Nothing -> throwIO $ CredentialError ("key not found: " ++ idName) (Credential dic)
 
 authTwitter' ::

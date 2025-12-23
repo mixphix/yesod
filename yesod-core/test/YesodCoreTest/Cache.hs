@@ -50,11 +50,11 @@ getRootR = do
     cacheBySet "3" (V2 3)
     V2 v3a <- cacheByGet "3" >>= \x ->
       case x of
-        Just y -> return y
+        Just y -> pure y
         Nothing -> error "must be Just"
     V2 v3b <- cachedBy "3" $ (pure $ V2 4)
 
-    return $ RepPlain $ toContent $ show [v1a, v1b, v2a, v2b, v3a, v3b]
+    pure $ RepPlain $ toContent $ show [v1a, v1b, v2a, v2b, v3a, v3b]
 
 getKeyR :: Handler RepPlain
 getKeyR = do
@@ -72,11 +72,11 @@ getKeyR = do
     cacheBySet "4" (V2 4)
     V2 v4a <- cacheByGet "4" >>= \x ->
       case x of
-        Just y -> return y
+        Just y -> pure y
         Nothing -> error "must be Just"
     V2 v4b <- cachedBy "4" $ (pure $ V2 5)
 
-    return $ RepPlain $ toContent $ show [v1a, v1b, v2a, v2b, v3a, v3b, v4a, v4b]
+    pure $ RepPlain $ toContent $ show [v1a, v1b, v2a, v2b, v3a, v3b, v4a, v4b]
 
 getNestedR :: Handler RepPlain
 getNestedR = getNested cached
@@ -91,10 +91,10 @@ getNested cacheMethod = do
     let getV2 = atomicModifyIORef ref $ \i -> (i + 1, V2 $ i + 1)
     V1 _ <- cacheMethod $ do
       V2 val <- cacheMethod $ getV2
-      return $ V1 val
+      pure $ V1 val
     V2 v2 <- cacheMethod $ getV2
 
-    return $ RepPlain $ toContent $ show v2
+    pure $ RepPlain $ toContent $ show v2
 
 cacheTest :: Spec
 cacheTest =

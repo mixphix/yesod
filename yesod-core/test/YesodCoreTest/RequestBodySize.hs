@@ -43,17 +43,17 @@ postPostR, postConsumeR, postPartialConsumeR, postUnusedR :: Handler RepPlain
 
 postPostR = do
     val <- lookupPostParams "foobarbaz"
-    return $ RepPlain $ toContent $ T.concat val
+    pure $ RepPlain $ toContent $ T.concat val
 
 postConsumeR = do
     body <- runConduit $ rawRequestBody .| consume
-    return $ RepPlain $ toContent $ S.concat body
+    pure $ RepPlain $ toContent $ S.concat body
 
 postPartialConsumeR = do
     body <- runConduit $ rawRequestBody .| isolate 5 .| consume
-    return $ RepPlain $ toContent $ S.concat body
+    pure $ RepPlain $ toContent $ S.concat body
 
-postUnusedR = return $ RepPlain ""
+postUnusedR = pure $ RepPlain ""
 
 runner :: Session () -> IO ()
 runner f = toWaiApp Y >>= runSession f

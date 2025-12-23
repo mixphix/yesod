@@ -27,7 +27,7 @@ appCache trees = do
             , "\n\nCACHE:\n"
             , body
             ]
-    [|return (AppCache (pack total))|]
+    [|pure (AppCache (pack total))|]
   where
     toPath [] = "/"
     toPath x = concatMap ('/':) x
@@ -48,7 +48,7 @@ goPieces :: Monad m => String -> [(CheckOverlap, Piece String)] -> m [String]
 goPieces name =
     mapM (goPiece . snd)
   where
-    goPiece (Static s) = return s
+    goPiece (Static s) = pure s
     goPiece (Dynamic _) = fail $ concat
         [ "AppCache only applies to fully-static paths, but "
         , name

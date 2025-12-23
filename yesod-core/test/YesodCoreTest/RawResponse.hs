@@ -80,8 +80,8 @@ specs = do
                     let loop = do
                             x <- await
                             case x of
-                                Nothing -> return ()
-                                Just "\r" -> return ()
+                                Nothing -> pure ()
+                                Just "\r" -> pure ()
                                 _ -> loop
                     loop
 
@@ -91,7 +91,7 @@ specs = do
                     Just "0006\r" <- await
                     Just " world\r" <- await
 
-                    return ()
+                    pure ()
     it "sendWaiResponse + responseStream" $ do
         body "GET /wai-stream HTTP/1.1\r\n\r\n"
     it "sendWaiApplication + responseStream" $ do

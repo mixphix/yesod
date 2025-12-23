@@ -11,10 +11,10 @@ import qualified Data.ByteString.Lazy.Char8 as L8
 
 iapp :: IO Application
 iapp = toWaiApp $ liteApp $ do
-    onMethod (S8.pack "GET") (dispatchTo $ return "GetHomepage")
-    onMethod (S8.pack "POST") (dispatchTo $ return "PostHomepage")
-    onStatic (T.pack "string") (withDynamic (\t -> dispatchTo $ return (t :: T.Text)))
-    onStatic (T.pack "multi") (withDynamicMulti (\[_, y] -> dispatchTo $ return (y :: T.Text)))
+    onMethod (S8.pack "GET") (dispatchTo $ pure "GetHomepage")
+    onMethod (S8.pack "POST") (dispatchTo $ pure "PostHomepage")
+    onStatic (T.pack "string") (withDynamic (\t -> dispatchTo $ pure (t :: T.Text)))
+    onStatic (T.pack "multi") (withDynamicMulti (\[_, y] -> dispatchTo $ pure (y :: T.Text)))
 
 test :: String -- ^ method
      -> [String] -- ^ path

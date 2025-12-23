@@ -40,7 +40,7 @@ chatApp = do
 
     atomically $ case e of
         Left _ -> writeTChan writeChan $ name <> " has left the chat"
-        Right () -> return ()
+        Right () -> pure ()
 
 getHomeR :: Handler Html
 getHomeR = do

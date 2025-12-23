@@ -209,7 +209,7 @@ mkRenderRouteClauses =
             )
             `AppE` (rr `AppE` VarE child)
 
-    return $ Clause [pat] (NormalB body) [FunD childRender childClauses]
+    pure $ Clause [pat] (NormalB body) [FunD childRender childClauses]
   go (ResourceLeaf res) = do
     let cnt =
           length (filter isDynamic $ resourcePieces res)
@@ -217,8 +217,8 @@ mkRenderRouteClauses =
     dyns <- replicateM cnt $ newName "dyn"
     sub <-
       case resourceDispatch res of
-        Subsite{} -> return <$> newName "sub"
-        _ -> return []
+        Subsite{} -> pure <$> newName "sub"
+        _ -> pure []
     let pat = conPCompat (mkName $ resourceName res) $ map VarP $ dyns ++ sub
 
     pack' <- [|pack|]
@@ -227,10 +227,10 @@ mkRenderRouteClauses =
 
     piecesMulti <-
       case resourceMulti res of
-        Nothing -> return $ ListE []
+        Nothing -> pure $ ListE []
         Just{} -> do
           tmp <- [|toPathMultiPiece|]
-          return $ tmp `AppE` VarE (last dyns)
+          pure $ tmp `AppE` VarE (last dyns)
 
     body <-
       case sub of
@@ -243,7 +243,7 @@ mkRenderRouteClauses =
           let cons y ys = InfixE (Just y) colon (Just ys)
           let pieces = foldr cons (VarE a) piecesSingle
 
-          return $
+          pure $
             LamE
               [TupP [VarP a, VarP b]]
               ( TupE $
@@ -255,13 +255,13 @@ mkRenderRouteClauses =
         _ -> do
           colon <- [|(:)|]
           let cons a b = InfixE (Just a) colon (Just b)
-          return $
+          pure $
             TupE $
               map
                 Just
                 [foldr cons piecesMulti piecesSingle, ListE []]
 
-    return $ Clause [pat] (NormalB body) []
+    pure $ Clause [pat] (NormalB body) []
 
   mkPieces _ _ [] _ = []
   mkPieces toText tsp (Static s : ps) dyns = toText s : mkPieces toText tsp ps dyns
@@ -288,7 +288,7 @@ mkRenderRouteInstanceOpts opts cxt tyargs typ ress = do
           Nothing
           cons
           inlineDerives
-  return $
+  pure $
     instanceD
       cxt
       (ConT ''RenderRoute `AppT` typ)

@@ -26,13 +26,13 @@ getSubRootR = do
     Subsite s <- getYesod
     render <- getUrlRender
     $logDebug "I'm in SubRootR"
-    return $ RepPlain $ toContent $ "Hello Sub World: " ++ s ++ ". " ++ unpack (render SubRootR)
+    pure $ RepPlain $ toContent $ "Hello Sub World: " ++ s ++ ". " ++ unpack (render SubRootR)
 
 handleSubMultiR :: Yesod master => Strings -> HandlerT Subsite (HandlerT master IO) RepPlain
 handleSubMultiR x = do
     Subsite y <- getYesod
     $logInfo "In SubMultiR"
-    return . RepPlain . toContent . show $ (x, y)
+    pure . RepPlain . toContent . show $ (x, y)
 
 data HelloWorld = HelloWorld { getSubsite :: String -> Subsite }
 mkYesod "HelloWorld" [parseRoutes|
@@ -42,7 +42,7 @@ mkYesod "HelloWorld" [parseRoutes|
 instance Yesod HelloWorld where
     addStaticContent a b c = do
         $logInfo $ pack $ show (a, b, c)
-        return Nothing
+        pure Nothing
 
 getRootR = do
     $(logOther "HAHAHA") "Here I am"

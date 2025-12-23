@@ -88,11 +88,11 @@ instance YesodSubDispatch EmbeddedStatic master where
 
 -- | Create the haskell variable for the link to the entry
 mkRoute :: ComputedEntry -> Q [Dec]
-mkRoute ComputedEntry{cHaskellName = Nothing} = return []
+mkRoute ComputedEntry{cHaskellName = Nothing} = pure []
 mkRoute c@ComputedEntry{cHaskellName = Just name} = do
   routeType <- [t|Route EmbeddedStatic|]
   link <- [|$(cLink c)|]
-  return
+  pure
     [ SigD name routeType
     , ValD (VarP name) (NormalB link) []
     ]
@@ -138,7 +138,7 @@ mkEmbeddedStatic dev esName gen = do
   entries <- concat <$> sequence gen
   computed <- runIO $ mapM (if dev then devEmbed else prodEmbed) entries
 
-  let settings = Static.mkSettings $ return $ map cStEntry computed
+  let settings = Static.mkSettings $ pure $ map cStEntry computed
       devExtra = listE $ mapMaybe ebDevelExtraFiles entries
       ioRef = [|unsafePerformIO $ newIORef M.empty|]
 
@@ -155,7 +155,7 @@ mkEmbeddedStatic dev esName gen = do
 
   routes <- mapM mkRoute computed
 
-  return $ es ++ concat routes
+  pure $ es ++ concat routes
 
 -- | Use this for 'addStaticContent' to have the widget static content be served by
 --   the embedded static subsite.  For example,

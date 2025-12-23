@@ -109,7 +109,7 @@ defaultGetDBRunner getPool = do
       ( do
           (conn, local) <- takeResource pool
           withPrep conn (\c f -> SQL.connBegin c f Nothing)
-          return (conn, local)
+          pure (conn, local)
       )
       ( \(conn, local) -> do
           withPrep conn SQL.connRollback
@@ -120,9 +120,9 @@ defaultGetDBRunner getPool = do
         withPrep conn SQL.connCommit
         putResource local conn
         _ <- unprotect relKey
-        return ()
+        pure ()
 
-  return (DBRunner $ \x -> runReaderT (unSqlPersistT x) conn, cleanup)
+  pure (DBRunner $ \x -> runReaderT (unSqlPersistT x) conn, cleanup)
 
 -- | Like 'runDB', but transforms a @Source@. See 'respondSourceDB' for an
 -- example, practical use case.

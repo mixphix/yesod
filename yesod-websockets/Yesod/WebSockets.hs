@@ -69,7 +69,7 @@ webSocketsOptions
   => WS.ConnectionOptions
   -> WebSocketsT m ()
   -> m ()
-webSocketsOptions opts = webSocketsOptionsWith opts $ const $ return $ Just $ WS.AcceptRequest Nothing []
+webSocketsOptions opts = webSocketsOptionsWith opts $ const $ pure $ Just $ WS.AcceptRequest Nothing []
 
 -- | Varient of 'webSockets' which allows you to specify the 'WS.AcceptRequest'
 -- setttings when upgrading to a websocket connection.
@@ -110,7 +110,7 @@ webSocketsOptionsWith wsConnOpts buildAr inner = do
         let rhead = WaiWS.getRequestHead req
         mar <- buildAr rhead
         case mar of
-            Nothing -> return ()
+            Nothing -> pure ()
             Just ar ->
                 Y.sendRawResponseNoConduit
                   $ \src sink -> withRunInIO $ \runInIO -> WaiWS.runWebSockets
@@ -188,7 +188,7 @@ sendTextData = wrapWS WS.sendTextData
 -- | Send a textual message to the client.
 -- Capture SomeException as the result or operation
 -- and can be used like
--- `either handle_exception return =<< sendTextDataE ("Welcome" :: Text)`
+-- `either handle_exception pure =<< sendTextDataE ("Welcome" :: Text)`
 -- Since 0.2.2
 sendTextDataE
   :: (MonadIO m, WS.WebSocketsData a, MonadReader WS.Connection m)

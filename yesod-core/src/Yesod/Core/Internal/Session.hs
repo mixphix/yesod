@@ -47,7 +47,7 @@ decodeClientSession key date rhost encrypted = do
     either (const Nothing) Just $ decode decrypted
   guard $ expire > csdcNow date
   guard $ rhost' == rhost
-  return session'
+  pure session'
 
 ----------------------------------------------------------------------
 
@@ -72,10 +72,10 @@ clientSessionDateCacher validity = do
         , updateFreq = 10000000 -- 10s
         }
 
-  return (getClientSessionDateCache, return ())
+  pure (getClientSessionDateCache, pure ())
  where
   getUpdated = do
     now <- getCurrentTime
     let expires = validity `addUTCTime` now
         expiresS = runPut (putTime expires)
-    return $! ClientSessionDateCache now expires expiresS
+    pure $! ClientSessionDateCache now expires expiresS

@@ -1,10 +1,8 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -424,7 +422,7 @@ getPostParams ::
 getPostParams = fst <$> runRequestBody
 
 -- | Get the route requested by the user. If this is a 404 response- where the
--- user requested an invalid route- this function will pure 'Nothing'.
+-- user requested an invalid route- this function will return 'Nothing'.
 getCurrentRoute :: (MonadHandler m) => m (Maybe (Route (HandlerSite m)))
 getCurrentRoute = rheRoute <$> askHandlerEnv
 
@@ -1019,7 +1017,7 @@ data Etag
     InvalidEtag !S.ByteString
   deriving (Show, Eq)
 
--- | Check the if-none-match header and, if it matches the given value, pure
+-- | Check the if-none-match header and, if it matches the given value, return
 -- a 304 not modified response. Otherwise, set the etag header to the given
 -- value.
 --
@@ -1057,7 +1055,7 @@ parseMatch =
         WeakEtag $ S.init $ S.drop 3 bs
     | otherwise = InvalidEtag bs
 
--- | Check the if-none-match header and, if it matches the given value, pure
+-- | Check the if-none-match header and, if it matches the given value, return
 -- a 304 not modified response. Otherwise, set the etag header to the given
 -- value.
 --
@@ -1223,7 +1221,7 @@ giveUrlRenderer ::
 giveUrlRenderer = withUrlRenderer
 {-# DEPRECATED giveUrlRenderer "Use withUrlRenderer instead" #-}
 
--- | Provide a URL rendering function to the given function and pure the
+-- | Provide a URL rendering function to the given function and return the
 -- result. Useful for processing Shakespearean templates.
 --
 -- @since 1.2.20
@@ -1297,7 +1295,7 @@ cacheSet value = do
 -- 'cachedBy' stores multiple values per type by usage of a ByteString key
 --
 -- 'cached' is ideal to cache an action that has only one value of a type, such as the session's current user
--- 'cachedBy' is required if the action has parameters and can pure multiple values per type.
+-- 'cachedBy' is required if the action has parameters and can return multiple values per type.
 -- You can turn those parameters into a ByteString cache key.
 -- For example, caching a lookup of a Link by a token where multiple token lookups might be performed.
 --
@@ -1810,7 +1808,7 @@ checkCsrfHeaderOrParam headerName paramName = do
   (validParam, mParam) <- hasValidCsrfParamNamed' paramName
   unless (validHeader || validParam) $ do
     let errorMessage =
-          csrfErrorMessage $
+          csrfErrorMessage
             [ CSRFHeader (decodeUtf8 $ original headerName) mHeader
             , CSRFParam paramName mParam
             ]

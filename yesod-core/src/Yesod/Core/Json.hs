@@ -90,27 +90,27 @@ defaultLayoutJson w json = selectRep $ do
 --
 -- @since 0.3.0
 jsonToRepJson :: (Monad m, J.ToJSON a) => a -> m J.Value
-jsonToRepJson = return . J.toJSON
+jsonToRepJson = pure . J.toJSON
 {-# DEPRECATED jsonToRepJson "Use returnJson instead" #-}
 
 -- | Convert a value to a JSON representation via aeson\'s 'J.toJSON' function.
 --
 -- @since 1.2.1
 returnJson :: (Monad m, J.ToJSON a) => a -> m J.Value
-returnJson = return . J.toJSON
+returnJson = pure . J.toJSON
 
 -- | Convert a value to a JSON representation via aeson\'s 'J.toEncoding' function.
 --
 -- @since 1.4.21
 returnJsonEncoding :: (Monad m, J.ToJSON a) => a -> m J.Encoding
-returnJsonEncoding = return . J.toEncoding
+returnJsonEncoding = pure . J.toEncoding
 
 -- | Provide a JSON representation for usage with 'selectReps', using aeson\'s
 -- 'J.toJSON' (aeson >= 0.11: 'J.toEncoding') function to perform the conversion.
 --
 -- @since 1.2.1
 provideJson :: (Monad m, J.ToJSON a) => a -> Writer (Endo [ProvidedRep m]) ()
-provideJson = provideRep . return . J.toEncoding
+provideJson = provideRep . pure . J.toEncoding
 
 -- | Same as 'parseInsecureJsonBody'
 --
@@ -128,7 +128,7 @@ parseJsonBody = parseInsecureJsonBody
 parseInsecureJsonBody :: (MonadHandler m, J.FromJSON a) => m (J.Result a)
 parseInsecureJsonBody = do
   eValue <- runConduit $ rawRequestBody .| runCatchC (sinkParser JP.value')
-  return $ case eValue of
+  pure $ case eValue of
     Left e -> J.Error $ show e
     Right value -> J.fromJSON value
 
@@ -153,7 +153,7 @@ parseCheckJsonBody = do
   mct <- lookupHeader "content-type"
   case fmap contentTypeHeaderIsJson mct of
     Just True -> parseInsecureJsonBody
-    _ -> return $ J.Error $ "Non-JSON content type: " ++ show mct
+    _ -> pure $ J.Error $ "Non-JSON content type: " ++ show mct
 
 -- | Same as 'parseInsecureJsonBody', but return an invalid args response on a parse
 -- error.
@@ -176,7 +176,7 @@ requireInsecureJsonBody = do
   ra <- parseInsecureJsonBody
   case ra of
     J.Error s -> invalidArgs [pack s]
-    J.Success a -> return a
+    J.Success a -> pure a
 
 -- | Same as 'parseCheckJsonBody', but return an invalid args response on a parse
 -- error.
@@ -185,7 +185,7 @@ requireCheckJsonBody = do
   ra <- parseCheckJsonBody
   case ra of
     J.Error s -> invalidArgs [pack s]
-    J.Success a -> return a
+    J.Success a -> pure a
 
 -- | Convert a list of values to an 'J.Array'.
 array :: (J.ToJSON a) => [a] -> J.Value
@@ -235,7 +235,7 @@ jsonOrRedirect' ::
 jsonOrRedirect' f r j = do
   q <- acceptsJson
   if q
-    then return (f j)
+    then pure (f j)
     else redirect r
 
 -- | Returns @True@ if the client prefers @application\/json@ as

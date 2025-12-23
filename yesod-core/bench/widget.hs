@@ -59,7 +59,7 @@ bigTableWidget rows = fmap (L.length . Utf8.renderHtml . ($ render)) (run [whaml
   render _ _ = "foo"
   run (WidgetT w) = do
     (_, GWData { gwdBody = Body x }) <- w undefined
-    return x
+    pure x
     -}
 
 bigTableBlaze :: Show a => [[a]] -> Int64

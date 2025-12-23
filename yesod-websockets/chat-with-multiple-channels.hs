@@ -52,10 +52,10 @@ chatApp = do
                                 Nothing -> do
                                     chan <- newBroadcastTChan
                                     writeTVar channelMapTVar $ M.insert channelId (chan, 1) channelMap
-                                    return chan
+                                    pure chan
                                 Just (writeChan, _) -> do
                                     writeTVar channelMapTVar $ M.alter userJoinedChannel channelId channelMap
-                                    return writeChan
+                                    pure writeChan
 
     readChan <- atomically $ do
         writeTChan writeChan $ name <> " has joined the chat"
@@ -71,7 +71,7 @@ chatApp = do
             let newChannelMap = M.alter cleanupChannel channelId channelMap
             writeTVar channelMapTVar newChannelMap
             writeTChan writeChan $ name <> " has left the chat"
-        Right () -> return ()
+        Right () -> pure ()
 
 getHomeR :: Handler Html
 getHomeR = do

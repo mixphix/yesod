@@ -39,7 +39,7 @@ getRootR :: Handler Html
 getRootR = defaultLayout $ toWidgetBody [julius|<not escaped>|]
 
 getMultiR :: [String] -> Handler ()
-getMultiR _ = return ()
+getMultiR _ = pure ()
 
 data Msg = Hello | Goodbye
 instance RenderMessage Y Msg where

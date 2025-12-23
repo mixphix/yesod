@@ -15,6 +15,6 @@ app req =
             { ssFolder = ".."
             , ssIndices = []
             , ssListing = Just defaultListing
-            , ssGetMimeType = return . defaultMimeTypeByExt
+            , ssGetMimeType = pure . defaultMimeTypeByExt
             } rest req
-        _ -> return $ responseLBS status404 [("Content-Type", "text/plain")] "Not found"
+        _ -> pure $ responseLBS status404 [("Content-Type", "text/plain")] "Not found"

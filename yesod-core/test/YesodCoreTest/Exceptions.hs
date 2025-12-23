@@ -30,13 +30,13 @@ mkYesod "Y" [parseRoutes|
 instance Yesod Y where
     approot = ApprootStatic "http://test"
     errorHandler (InternalError e) = do
-        _ <- return $! e
+        _ <- pure $! e
         addHeader "ERROR" "HANDLER"
-        return $ toTypedContent e
+        pure $ toTypedContent e
     errorHandler x = defaultErrorHandler x
 
 getRootR :: Handler ()
-getRootR = error "FOOBAR" >> return ()
+getRootR = error "FOOBAR" >> pure ()
 
 getRedirR :: Handler ()
 getRedirR = do

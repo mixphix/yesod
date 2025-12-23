@@ -42,7 +42,7 @@ watchTermFile =
     loop = do
         exists <- doesFileExist "yesod-devel/devel-terminate"
         if exists
-            then return ()
+            then pure ()
             else do
                 threadDelay 100000
                 loop

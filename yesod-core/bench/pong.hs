@@ -21,9 +21,9 @@ mkYesod "Pong" [$parseRoutes|
 
 instance Yesod Pong where
     approot _ = ""
-    encryptKey _ = return Nothing
+    encryptKey _ = pure Nothing
 
-getPongR = return $ RepPlain $ toContent ("PONG" :: ByteString)
+getPongR = pure $ RepPlain $ toContent ("PONG" :: ByteString)
 
 main = do
     app <- toWaiAppPlain Pong

@@ -26,7 +26,7 @@ mkYesod "App" [parseRoutes|
 instance Yesod App
 
 getSubR :: SubHandlerFor InnerSubSite master T.Text
-getSubR = return $ T.pack "sub"
+getSubR = pure $ T.pack "sub"
 
 instance YesodSubDispatch OuterSubSite master where
   yesodSubDispatch = $(mkYesodSubDispatch resourcesOuterSubSite)

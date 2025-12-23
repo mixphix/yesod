@@ -27,7 +27,7 @@ prepareForEventSource = do
   let polyfill | reqWith == Just "XMLHttpRequest" = Remy'sESPolyfill
                | otherwise                        = NoESPolyfill
   addHeader "Cache-Control" "no-cache" -- extremely important!
-  return polyfill
+  pure polyfill
 
 
 -- | (Internal) Source with a event stream content-type.
@@ -58,7 +58,7 @@ sourceToSource src =
   where
     eventToFlushBuilder event =
         case ES.eventToBuilder event of
-            Nothing -> return ()
+            Nothing -> pure ()
             Just x -> yield (Chunk x) >> yield Flush
 
 

@@ -32,7 +32,7 @@ getTime = do
   let (d, t) = val `divMod` posixDayLength_int64
       d' = ModifiedJulianDay $! fromIntegral d
       t' = fromIntegral t
-  d' `seq` t' `seq` return (UTCTime d' t')
+  d' `seq` t' `seq` pure (UTCTime d' t')
 
 posixDayLength_int64 :: Int64
 posixDayLength_int64 = 86400

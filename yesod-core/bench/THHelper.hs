@@ -16,7 +16,7 @@ settings = MkDispatchSettings
     [|snd|]
     [|Nothing|]
     [|Nothing|]
-    (\(Just method) name -> return $ VarE $ mkName $ map toLower method ++ name)
+    (\(Just method) name -> pure $ VarE $ mkName $ map toLower method ++ name)
 
 resources = [parseRoutes|
 / HomeR GET

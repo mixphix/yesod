@@ -33,11 +33,11 @@ newtype FormInput m a = FormInput
 instance (Monad m) => Functor (FormInput m) where
   fmap a (FormInput f) = FormInput $ \c d e e' -> liftM (either Left (Right . a)) $ f c d e e'
 instance (Monad m) => Applicative (FormInput m) where
-  pure = FormInput . const . const . const . const . return . Right
+  pure = FormInput . const . const . const . const . pure . Right
   (FormInput f) <*> (FormInput x) = FormInput $ \c d e e' -> do
     res1 <- f c d e e'
     res2 <- x c d e e'
-    return $ case (res1, res2) of
+    pure $ case (res1, res2) of
       (Left a, Left b) -> Left $ a . b
       (Left a, _) -> Left a
       (_, Left b) -> Left b
@@ -55,7 +55,7 @@ ireq field name = FormInput $ \m l env fenv -> do
   let filteredEnv = fromMaybe [] $ Map.lookup name env
       filteredFEnv = fromMaybe [] $ Map.lookup name fenv
   emx <- fieldParse field filteredEnv filteredFEnv
-  return $ case emx of
+  pure $ case emx of
     Left (SomeMessage e) -> Left $ (:) $ renderMessage m l e
     Right Nothing -> Left $ (:) $ renderMessage m l $ MsgInputNotFound name
     Right (Just a) -> Right a
@@ -67,14 +67,14 @@ iopt field name = FormInput $ \m l env fenv -> do
   let filteredEnv = fromMaybe [] $ Map.lookup name env
       filteredFEnv = fromMaybe [] $ Map.lookup name fenv
   emx <- fieldParse field filteredEnv filteredFEnv
-  return $ case emx of
+  pure $ case emx of
     Left (SomeMessage e) -> Left $ (:) $ renderMessage m l e
     Right x -> Right x
 
 -- | Run a @FormInput@ on the GET parameters (i.e., query string). If parsing
 -- fails, calls 'invalidArgs'.
 runInputGet :: (MonadHandler m) => FormInput m a -> m a
-runInputGet = either invalidArgs return <=< runInputGetHelper
+runInputGet = either invalidArgs pure <=< runInputGetHelper
 
 -- | Run a @FormInput@ on the GET parameters (i.e., query string). Does /not/
 -- throw exceptions on failure.
@@ -89,7 +89,7 @@ runInputGetHelper (FormInput f) = do
   m <- getYesod
   l <- languages
   emx <- f m l env Map.empty
-  return $ either (Left . ($ [])) Right emx
+  pure $ either (Left . ($ [])) Right emx
 
 toMap :: [(Text, a)] -> Map.Map Text [a]
 toMap = Map.unionsWith (++) . map (\(x, y) -> Map.singleton x [y])
@@ -97,7 +97,7 @@ toMap = Map.unionsWith (++) . map (\(x, y) -> Map.singleton x [y])
 -- | Run a @FormInput@ on the POST parameters (i.e., request body). If parsing
 -- fails, calls 'invalidArgs'.
 runInputPost :: (MonadHandler m) => FormInput m a -> m a
-runInputPost = either invalidArgs return <=< runInputPostHelper
+runInputPost = either invalidArgs pure <=< runInputPostHelper
 
 -- | Run a @FormInput@ on the POST parameters (i.e., request body). Does /not/
 -- throw exceptions on failure.

@@ -44,7 +44,7 @@ findEtag :: YesodExample site B.ByteString
 findEtag = withResponse $ \r ->
     case lookup "ETag" (simpleHeaders r) of
         Nothing -> liftIO (assertFailure "No etag found") >> error ""
-        Just e -> return e
+        Just e -> pure e
 
 hasCacheControl :: YesodExample site ()
 hasCacheControl = withResponse $ \r -> do
@@ -114,7 +114,7 @@ embedProductionSpecs = yesodSpec (MyApp eProduction) $ do
             get HomeR
             statusIs 200
             script <- htmlQuery "script" >>= \case
-                [s] -> return s
+                [s] -> pure s
                 _ -> liftIO $ fail "Expected singleton list of script"
             let src = BL.takeWhile (/= 34) $ BL.drop 1 $ BL.dropWhile (/= 34) script -- 34 is "
 
