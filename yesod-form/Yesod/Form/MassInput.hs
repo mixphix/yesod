@@ -24,7 +24,7 @@ import Yesod.Form.Fields (checkBoxField)
 import Yesod.Form.Functions
 import Yesod.Form.Types
 
-down :: (Monad m) => Int -> MForm m ()
+down :: Int -> MForm site ()
 down 0 = pure ()
 down i | i < 0 = error "called down with a negative number"
 down i = do
@@ -32,7 +32,7 @@ down i = do
   put $ IntCons 0 is
   down $ i - 1
 
-up :: (Monad m) => Int -> MForm m ()
+up :: Int -> MForm site ()
 up 0 = pure ()
 up i | i < 0 = error "called down with a negative number"
 up i = do
@@ -52,10 +52,10 @@ inputList ::
   ([[FieldView site]] -> xml) ->
   -- | display a single row of the form, where @Maybe a@ gives the
   -- previously submitted value
-  (Maybe a -> AForm (HandlerFor site) a) ->
+  (Maybe a -> AForm site a) ->
   -- | default initial values for the form
   Maybe [a] ->
-  AForm (HandlerFor site) [a]
+  AForm site [a]
 inputList label fixXml single mdef = formToAForm $ do
   theId <- lift newIdent
   down 1
@@ -103,8 +103,8 @@ $newline never
 
 withDelete ::
   (xml ~ WidgetFor site (), RenderMessage site FormMessage) =>
-  AForm (HandlerFor site) a ->
-  MForm (HandlerFor site) (Either xml (FormResult a, [FieldView site]))
+  AForm site a ->
+  MForm site (Either xml (FormResult a, [FieldView site]))
 withDelete af = do
   down 1
   deleteName <- newFormIdent

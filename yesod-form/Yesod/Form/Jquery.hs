@@ -59,7 +59,7 @@ class YesodJquery a where
 
 jqueryDayField ::
   (RenderMessage site FormMessage, YesodJquery site) =>
-  JqueryDaySettings -> Field (HandlerFor site) Day
+  JqueryDaySettings -> Field site Day
 jqueryDayField = flip jqueryDayField' "date"
 
 -- | Use jQuery's datepicker as the underlying implementation.
@@ -67,12 +67,12 @@ jqueryDayField = flip jqueryDayField' "date"
 -- Since 1.4.3
 jqueryDatePickerDayField ::
   (RenderMessage site FormMessage, YesodJquery site) =>
-  JqueryDaySettings -> Field (HandlerFor site) Day
+  JqueryDaySettings -> Field site Day
 jqueryDatePickerDayField = flip jqueryDayField' "text"
 
 jqueryDayField' ::
   (RenderMessage site FormMessage, YesodJquery site) =>
-  JqueryDaySettings -> Text -> Field (HandlerFor site) Day
+  JqueryDaySettings -> Text -> Field site Day
 jqueryDayField' jds inputType =
   Field
     { fieldParse =
@@ -124,7 +124,7 @@ $(function(){
 
 jqueryAutocompleteField ::
   (RenderMessage site FormMessage, YesodJquery site) =>
-  Route site -> Field (HandlerFor site) Text
+  Route site -> Field site Text
 jqueryAutocompleteField = jqueryAutocompleteField' 2
 
 jqueryAutocompleteField' ::
@@ -132,7 +132,7 @@ jqueryAutocompleteField' ::
   -- | autocomplete minimum length
   Int ->
   Route site ->
-  Field (HandlerFor site) Text
+  Field site Text
 jqueryAutocompleteField' minLen src =
   Field
     { fieldParse = parseHelper $ Right

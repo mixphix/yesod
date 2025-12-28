@@ -61,12 +61,12 @@ import Yesod.Form.Fields
 -- Note that the type constraint allows localizable messages in place of toMsg (see
 -- https://en.wikipedia.org/wiki/Yesod_(web_framework)#Localizable_messages).
 optionsFromList' ::
-  (MonadHandler m) =>
-  (RenderMessage (HandlerSite m) msg) =>
-  (PathPiece a) =>
+  ( RenderMessage site msg
+  , PathPiece a
+  ) =>
   [a] ->
   (a -> msg) ->
-  m (OptionList a)
+  HandlerFor site (OptionList a)
 optionsFromList' lst toDisplay = do
   mr <- getMessageRender
   pure $ mkOptionList $ flip map lst $ \v ->
@@ -86,11 +86,11 @@ optionsFromList' lst toDisplay = do
 -- constructors do not need to be typed out. Bounded and Enum instances must
 -- exist for `a` to use this.
 optionsEnum' ::
-  (MonadHandler m) =>
-  (RenderMessage (HandlerSite m) msg) =>
-  (PathPiece a) =>
-  (Enum a) =>
-  (Bounded a) =>
+  ( RenderMessage site msg
+  , PathPiece a
+  , Enum a
+  , Bounded a
+  ) =>
   (a -> msg) ->
-  m (OptionList a)
+  HandlerFor site (OptionList a)
 optionsEnum' = optionsFromList' [minBound .. maxBound]

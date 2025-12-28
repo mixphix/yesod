@@ -190,7 +190,7 @@ postLoginR ::
   (YesodAuthHardcoded site) =>
   AuthHandler site TypedContent
 postLoginR = do
-  (username, password) <-
+  (username, password) <- liftHandler $
     runInputPost
       ( (,)
           <$> ireq textField "username"

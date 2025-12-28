@@ -152,7 +152,7 @@ data BootstrapFormLayout
 -- | Render the given form using Bootstrap v3 conventions.
 --
 -- Since: yesod-form 1.3.8
-renderBootstrap3 :: (Monad m) => BootstrapFormLayout -> FormRender m a
+renderBootstrap3 :: BootstrapFormLayout -> FormRender site a
 renderBootstrap3 formLayout aform fragment = do
   (res, views') <- aFormToForm aform
   let views = views' []
@@ -235,8 +235,8 @@ instance (IsString msg) => IsString (BootstrapSubmit msg) where
 --
 -- Since: yesod-form 1.3.8
 bootstrapSubmit ::
-  (RenderMessage site msg, HandlerSite m ~ site, MonadHandler m) =>
-  BootstrapSubmit msg -> AForm m ()
+  (RenderMessage site msg) =>
+  BootstrapSubmit msg -> AForm site ()
 bootstrapSubmit = formToAForm . liftM (second pure) . mbootstrapSubmit
 
 -- | Same as 'bootstrapSubmit' but for monadic forms.  This isn't
@@ -245,8 +245,8 @@ bootstrapSubmit = formToAForm . liftM (second pure) . mbootstrapSubmit
 --
 -- Since: yesod-form 1.3.8
 mbootstrapSubmit ::
-  (RenderMessage site msg, HandlerSite m ~ site, MonadHandler m) =>
-  BootstrapSubmit msg -> MForm m (FormResult (), FieldView site)
+  (RenderMessage site msg) =>
+  BootstrapSubmit msg -> MForm site (FormResult (), FieldView site)
 mbootstrapSubmit (BootstrapSubmit msg classes attrs) =
   let res = FormSuccess ()
       widget = [whamlet|<button class="btn #{classes}" type=submit *{attrs}>_{msg}|]

@@ -33,8 +33,6 @@ import Text.Blaze (Markup, ToMarkup (toMarkup), ToValue (toValue))
 #define ToHtml ToMarkup
 #define toHtml toMarkup
 import Control.Applicative (Alternative (..))
-import Control.Monad (liftM)
-import Control.Monad.Trans.Class
 import Data.Foldable
 import qualified Data.Map as Map
 import Data.String (IsString (..))
@@ -141,34 +139,40 @@ type FileEnv = Map.Map Text [FileInfo]
 -- >   pure $ MyForm <$> field1F <*> field2F <*> field3F
 --
 -- @since 1.4.14
-type WForm m a = MForm (WriterT [FieldView (HandlerSite m)] m) a
-
-type MForm m a =
+type WForm site a =
   RWST
-    (Maybe (Env, FileEnv), HandlerSite m, [Lang])
+    (Maybe (Env, FileEnv), site, [Lang])
     Enctype
     Ints
-    m
+    (WriterT [FieldView site] (HandlerFor site))
     a
 
-newtype AForm m a = AForm
+type MForm site a =
+  RWST
+    (Maybe (Env, FileEnv), site, [Lang])
+    Enctype
+    Ints
+    (HandlerFor site)
+    a
+
+newtype AForm site a = AForm
   { unAForm ::
-      (HandlerSite m, [Text]) ->
+      (site, [Text]) ->
       Maybe (Env, FileEnv) ->
       Ints ->
-      m
+      HandlerFor
+        site
         ( FormResult a
-        , [FieldView (HandlerSite m)] -> [FieldView (HandlerSite m)]
+        , [FieldView site] -> [FieldView site]
         , Ints
         , Enctype
         )
   }
-instance (Monad m) => Functor (AForm m) where
-  fmap f (AForm a) =
-    AForm $ \x y z -> liftM go $ a x y z
+instance Functor (AForm site) where
+  fmap f (AForm a) = AForm $ \x y z -> go <$> a x y z
    where
     go (w, x, y, z) = (fmap f w, x, y, z)
-instance (Monad m) => Applicative (AForm m) where
+instance Applicative (AForm site) where
   pure x = AForm $ const $ const $ \ints -> pure (FormSuccess x, id, ints, mempty)
   (AForm f) <*> (AForm g) = AForm $ \mr env ints -> do
     (a, b, ints', c) <- f mr env ints
@@ -176,7 +180,7 @@ instance (Monad m) => Applicative (AForm m) where
     pure (a <*> x, b . y, ints'', c <> z)
 
 #if MIN_VERSION_transformers(0,6,0)
-instance Monad m => Monad (AForm m) where
+instance Monad (AForm site) where
     (AForm f) >>= k = AForm $ \mr env ints -> do
         (a, b, ints', c) <- f mr env ints
         case a of
@@ -186,20 +190,20 @@ instance Monad m => Monad (AForm m) where
           FormFailure err -> pure (FormFailure err, b, ints', c)
           FormMissing -> pure (FormMissing, b, ints', c)
 #endif
-instance (Monad m, Monoid a) => Monoid (AForm m a) where
+instance (Monoid a) => Monoid (AForm site a) where
   mempty = pure mempty
   mappend = (<>)
-instance (Monad m, Semigroup a) => Semigroup (AForm m a) where
+instance (Semigroup a) => Semigroup (AForm site a) where
   a <> b = (<>) <$> a <*> b
 
-instance MonadTrans AForm where
-  lift f = AForm $ \_ _ ints -> do
-    x <- f
-    pure (FormSuccess x, id, ints, mempty)
+-- instance MonadTrans AForm where
+--   lift f = AForm $ \_ _ ints -> do
+--     x <- f
+--     pure (FormSuccess x, id, ints, mempty)
 
-data FieldSettings master = FieldSettings
-  { fsLabel :: SomeMessage master
-  , fsTooltip :: Maybe (SomeMessage master)
+data FieldSettings site = FieldSettings
+  { fsLabel :: SomeMessage site
+  , fsTooltip :: Maybe (SomeMessage site)
   , fsId :: Maybe Text
   , fsName :: Maybe Text
   , fsAttrs :: [(Text, Text)]
@@ -217,7 +221,7 @@ data FieldView site = FieldView
   , fvRequired :: Bool
   }
 
-type FieldViewFunc m a =
+type FieldViewFunc site a =
   -- | ID
   Text ->
   -- | Name
@@ -228,14 +232,14 @@ type FieldViewFunc m a =
   Either Text a ->
   -- | Required?
   Bool ->
-  WidgetFor (HandlerSite m) ()
+  WidgetFor site ()
 
-data Field m a = Field
+data Field site a = Field
   { fieldParse ::
       [Text] ->
       [FileInfo] ->
-      m (Either (SomeMessage (HandlerSite m)) (Maybe a))
-  , fieldView :: FieldViewFunc m a
+      HandlerFor site (Either (SomeMessage site) (Maybe a))
+  , fieldView :: FieldViewFunc site a
   , fieldEnctype :: Enctype
   }
 
