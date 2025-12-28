@@ -99,7 +99,7 @@ authBrowserId bis@BrowserIdSettings{..} =
             sendResponse
               ( "image/png" :: ByteString
               , toContent
-                  $(embedFile "/home/mpb/Haskell/yesod/yesod-auth/persona_sign_in_blue.png")
+                  $(embedFile "/Users/mbrown/Documents/Code/Haskell/yesod/yesod-auth/persona_sign_in_blue.png")
               )
           (_, []) -> badMethod
           _ -> notFound

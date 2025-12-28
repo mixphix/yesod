@@ -1,4 +1,3 @@
--- {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -82,7 +81,7 @@ import Data.Char (isAsciiLower, isAsciiUpper, isDigit, isLower)
 import Data.Default
 import Data.FileEmbed (embedDir)
 import Data.IORef (newIORef, readIORef, writeIORef)
-import Data.List (intercalate, sort)
+import Data.List (intercalate, sort, foldl')
 import qualified Data.Map as M
 import Data.Text (Text, pack)
 import qualified Data.Text as T

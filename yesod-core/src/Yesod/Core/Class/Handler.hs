@@ -80,21 +80,21 @@ instance MonadHandler (WidgetFor site) where
 
 #define GO(T) instance MonadHandler m => MonadHandler (T m) where type HandlerSite (T m) = HandlerSite m; type SubHandlerSite (T m) = SubHandlerSite m; liftHandler = lift . liftHandler; liftSubHandler = lift . liftSubHandler
 #define GOX(X, T) instance (X, MonadHandler m) => MonadHandler (T m) where type HandlerSite (T m) = HandlerSite m; type SubHandlerSite (T m) = SubHandlerSite m; liftHandler = lift . liftHandler; liftSubHandler = lift . liftSubHandler
-GO (IdentityT)
+GO(IdentityT)
 #if !MIN_VERSION_transformers(0,6,0)
 GO(ListT)
 #endif
-GO (MaybeT)
-GO (ExceptT e)
-GO (ReaderT r)
-GO (StateT s)
-GOX (Monoid w, WriterT w)
-GOX (Monoid w, RWST r w s)
-GOX (Monoid w, Strict.RWST r w s)
-GO (Strict.StateT s)
-GOX (Monoid w, Strict.WriterT w)
-GO (Pipe l i o u)
-GO (ConduitM i o)
+GO(MaybeT)
+GO(ExceptT e)
+GO(ReaderT r)
+GO(StateT s)
+GOX(Monoid w, WriterT w)
+GOX(Monoid w, RWST r w s)
+GOX(Monoid w, Strict.RWST r w s)
+GO(Strict.StateT s)
+GOX(Monoid w, Strict.WriterT w)
+GO(Pipe l i o u)
+GO(ConduitM i o)
 #undef GO
 #undef GOX
 
@@ -110,20 +110,20 @@ liftWidgetT = liftWidget
 
 #define GO(T) instance MonadWidget m => MonadWidget (T m) where liftWidget = lift . liftWidget
 #define GOX(X, T) instance (X, MonadWidget m) => MonadWidget (T m) where liftWidget = lift . liftWidget
-GO (IdentityT)
+GO(IdentityT)
 #if !MIN_VERSION_transformers(0,6,0)
 GO(ListT)
 #endif
-GO (MaybeT)
-GO (ExceptT e)
-GO (ReaderT r)
-GO (StateT s)
-GOX (Monoid w, WriterT w)
-GOX (Monoid w, RWST r w s)
-GOX (Monoid w, Strict.RWST r w s)
-GO (Strict.StateT s)
-GOX (Monoid w, Strict.WriterT w)
-GO (Pipe l i o u)
-GO (ConduitM i o)
+GO(MaybeT)
+GO(ExceptT e)
+GO(ReaderT r)
+GO(StateT s)
+GOX(Monoid w, WriterT w)
+GOX(Monoid w, RWST r w s)
+GOX(Monoid w, Strict.RWST r w s)
+GO(Strict.StateT s)
+GOX(Monoid w, Strict.WriterT w)
+GO(Pipe l i o u)
+GO(ConduitM i o)
 #undef GO
 #undef GOX

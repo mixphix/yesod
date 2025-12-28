@@ -18,7 +18,7 @@ module Yesod.Routes.Parse
   ) where
 
 import Data.Char (isLower, isSpace, isUpper)
-import Data.List (isPrefixOf)
+import Data.List (isPrefixOf, foldl')
 import Data.Maybe (mapMaybe)
 import qualified Data.Set as Set
 import Language.Haskell.TH.Quote

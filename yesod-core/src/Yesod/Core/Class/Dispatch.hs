@@ -7,6 +7,7 @@
 
 module Yesod.Core.Class.Dispatch where
 
+import Data.List (foldl')
 import qualified Network.Wai as W
 import Yesod.Core.Class.Yesod
 import Yesod.Core.Content (ToTypedContent (..))

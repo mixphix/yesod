@@ -38,6 +38,7 @@ where
 
 import Control.Monad (replicateM, void)
 import Data.ByteString.Lazy.Char8 ()
+import Data.List (foldl')
 import Language.Haskell.TH hiding (cxt, instanceD)
 import Language.Haskell.TH.Syntax
 import qualified Network.Wai as W

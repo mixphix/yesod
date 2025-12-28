@@ -11,6 +11,7 @@ module Yesod.Routes.TH.Dispatch
 import Control.Arrow (second)
 import Control.Monad (forM)
 import Data.Char (toLower)
+import Data.List (foldl')
 import Data.Maybe (catMaybes)
 import Language.Haskell.TH.Syntax
 import System.Random (randomRIO)

@@ -7,9 +7,7 @@ module Yesod.Core.Class.Yesod where
 
 import Yesod.Core.Content
 import Yesod.Core.Handler
-
 import Yesod.Routes.Class
-
 import Control.Arrow (second, (***))
 import Control.Exception (bracket)
 import Control.Monad (forM, void, when)
@@ -30,7 +28,7 @@ import qualified Data.ByteString.Char8 as S8
 import qualified Data.ByteString.Lazy as L
 import Data.CaseInsensitive (CI)
 import Data.IORef
-import Data.List (nub)
+import Data.List (nub, foldl')
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Monoid (Last (..))

@@ -19,6 +19,7 @@ module Yesod.Routes.TH.RenderRoute
   ) where
 
 import Control.Monad (replicateM)
+import Data.List (foldl')
 import Data.Maybe (maybeToList)
 import Data.Text (pack)
 import Language.Haskell.TH.Syntax
