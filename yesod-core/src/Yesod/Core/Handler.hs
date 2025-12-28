@@ -25,8 +25,7 @@
 ---------------------------------------------------------
 module Yesod.Core.Handler
   ( -- * Handler monad
-    HandlerT
-  , HandlerFor
+    HandlerFor
 
     -- ** Read information from handler
   , getYesod
@@ -254,7 +253,6 @@ import qualified Data.Conduit.List as CL
 import qualified Data.Foldable as Fold
 import qualified Data.HashMap.Strict as HM
 import qualified Data.IORef as I
-import Data.Kind (Type)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe, listToMaybe, mapMaybe)
 import Data.Monoid (Endo (..))
@@ -315,9 +313,6 @@ import Yesod.Core.Internal.Request
 import Yesod.Core.Internal.Util (formatRFC1123)
 import qualified Yesod.Core.TypeCache as Cache
 import Yesod.Core.Types
-
-type HandlerT site (m :: Type -> Type) = HandlerFor site
-{-# DEPRECATED HandlerT "Use HandlerFor directly" #-}
 
 get :: (MonadHandler m) => m GHState
 get = liftHandler $ HandlerFor $ I.readIORef . handlerState

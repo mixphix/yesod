@@ -176,7 +176,7 @@ runFakeHandler ::
   SessionMap ->
   (site -> Logger) ->
   site ->
-  HandlerT site IO a ->
+  HandlerFor site a ->
   m (Either ErrorResponse a)
 runFakeHandler = Yesod.Core.Internal.Run.runFakeHandler
 {-# DEPRECATED runFakeHandler "import runFakeHandler from Yesod.Core.Unsafe" #-}
@@ -200,7 +200,7 @@ maybeAuthorized ::
   Route site ->
   -- | is this a write request?
   Bool ->
-  HandlerT site IO (Maybe (Route site))
+  HandlerFor site (Maybe (Route site))
 maybeAuthorized r isWrite = do
   x <- isAuthorized r isWrite
   pure $ if x == Authorized then Just r else Nothing
